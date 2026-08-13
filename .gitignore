@@ -1,0 +1,32 @@
+# Node / Web dependencies
+node_modules/
+.dist/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Android / Gradle build outputs
+.gradle/
+app/build/
+build/
+*.apk
+*.aab
+
+# IDE / OS settings
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+*.hprof
+.gradle/
+build/
+app/build/
+node_modules/
