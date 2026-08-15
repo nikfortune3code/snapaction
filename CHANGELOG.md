@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.2.0] - 2026-08-16
+
+### 🚀 Added
+- **Default Expense Currency to INR (₹)**:
+  - Updated default expense currency in data models (`ExpenseDetails.currency = "INR"`) and mock datasets to **INR (₹)** by default.
+  - Formatted all spend analysis banners, monthly headers, and expense card totals with **`₹`** symbol formatting.
+
+---
+
 ## [2.1.0] - 2026-08-16
 
 ### 🚀 Added
