@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.1.0] - 2026-08-16
+
+### 🚀 Added
+- **Monthly Expense Categorization & Spend Analysis**:
+  - Implemented month-by-month categorization for all expenses in the **Expenses** tab (e.g. `August 2026`, `July 2026`).
+  - Added a **Monthly Spend Analysis Banner** showing total monthly spend ($/₹), total paid amounts, and total pending bills.
+  - Added interactive **Month Filter Chips** (`All Months`, `August 2026`, `July 2026`...) to filter spend analysis and transaction feeds by month.
+  - Grouped expense cards under styled month section headers with monthly totals.
+
+---
+
 ## [2.0.0] - 2026-08-16
 
 ### 🚀 Added
