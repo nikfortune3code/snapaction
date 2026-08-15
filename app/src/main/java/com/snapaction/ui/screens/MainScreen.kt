@@ -247,7 +247,7 @@ fun MainScreen(
                             Column {
                                 Text("Total Spend", style = MaterialTheme.typography.labelSmall)
                                 Text(
-                                    text = String.format(Locale.US, "$%.2f", totalSpend),
+                                    text = String.format(Locale.US, "₹%.2f", totalSpend),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -256,7 +256,7 @@ fun MainScreen(
                             Column {
                                 Text("Paid Amount", style = MaterialTheme.typography.labelSmall)
                                 Text(
-                                    text = String.format(Locale.US, "$%.2f", paidSpend),
+                                    text = String.format(Locale.US, "₹%.2f", paidSpend),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.secondary
@@ -265,7 +265,7 @@ fun MainScreen(
                             Column {
                                 Text("Pending Bills", style = MaterialTheme.typography.labelSmall)
                                 Text(
-                                    text = String.format(Locale.US, "$%.2f", pendingSpend),
+                                    text = String.format(Locale.US, "₹%.2f", pendingSpend),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.error
@@ -319,7 +319,7 @@ fun MainScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = String.format(Locale.US, "Total: $%.2f", monthTotal),
+                                        text = String.format(Locale.US, "Total: ₹%.2f", monthTotal),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = MaterialTheme.colorScheme.primary
