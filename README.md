@@ -28,6 +28,12 @@ SnapAction features both a web application prototype and a native Android codeba
 - **Styling**: Tailwind CSS + Lucide React Icons
 - **Build Tool**: Vite
 
+### Backend Service (Node.js / Express API)
+- **Runtime**: Node.js + Express
+- **File Upload & Validation**: Multer (Memory Storage, JPEG/PNG/WebP format check, 5MB size limit)
+- **AI SDK**: `@google/genai` (Google Gen AI SDK with `responseSchema` / structured output mode)
+- **Endpoint**: `POST /api/analyze-image`
+
 ### Native Android App (`/app`)
 - **UI Framework**: Jetpack Compose + Material 3
 - **Language**: Kotlin
