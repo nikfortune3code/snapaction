@@ -27,6 +27,8 @@ fun EditActionSheet(
     onDismiss: () -> Unit,
     onSave: (SnapActionCard) -> Unit
 ) {
+    var selectedCategory by remember { mutableStateOf(card.category) }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -43,12 +45,42 @@ fun EditActionSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Edit & Verify AI Action",
+                    text = "Edit & Verify Action Card",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = onDismiss) {
                     Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Category Tab Assignment",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                IntentCategory.values().forEach { cat ->
+                    val label = when (cat) {
+                        IntentCategory.EVENT -> "Reminders"
+                        IntentCategory.GROCERY -> "Groceries"
+                        IntentCategory.EXPENSE -> "Expenses"
+                        IntentCategory.BOOKMARK -> "Bookmarks"
+                    }
+                    FilterChip(
+                        selected = selectedCategory == cat,
+                        onClick = { selectedCategory = cat },
+                        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -66,20 +98,21 @@ fun EditActionSheet(
                 contentDescription = "Original Screenshot",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
+                    .height(160.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Fit
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            when (card.category) {
+            when (selectedCategory) {
                 IntentCategory.EVENT -> {
-                    var eventTitle by remember { mutableStateOf(card.event?.title ?: "") }
-                    var startDate by remember { mutableStateOf(card.event?.startDate ?: "") }
-                    var startTime by remember { mutableStateOf(card.event?.startTime ?: "") }
-                    var location by remember { mutableStateOf(card.event?.location ?: "") }
+                    var eventTitle by remember { mutableStateOf(card.event?.title ?: "Scanned Event") }
+                    var startDate by remember { mutableStateOf(card.event?.startDate ?: "2026-08-25") }
+                    var startTime by remember { mutableStateOf(card.event?.startTime ?: "19:00") }
+                    var location by remember { mutableStateOf(card.event?.location ?: "Main Venue") }
+                    var details by remember { mutableStateOf(card.event?.details ?: "Extracted reminder details") }
 
                     OutlinedTextField(
                         value = eventTitle,
@@ -110,24 +143,23 @@ fun EditActionSheet(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                     Button(
                         onClick = {
-                            val updatedEv = card.event?.copy(title = eventTitle, startDate = startDate, startTime = startTime, location = location)
-                                ?: EventDetails(title = eventTitle, startDate = startDate, startTime = startTime, location = location)
-                            onSave(card.copy(event = updatedEv))
+                            val updatedEv = EventDetails(title = eventTitle, startDate = startDate, startTime = startTime, location = location, details = details)
+                            onSave(card.copy(category = IntentCategory.EVENT, event = updatedEv))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Verified Event")
+                        Text("Save to Reminders")
                     }
                 }
 
                 IntentCategory.GROCERY -> {
-                    var dishName by remember { mutableStateOf(card.grocery?.dishName ?: "") }
+                    var dishName by remember { mutableStateOf(card.grocery?.dishName ?: "Grocery List / Recipe") }
 
                     OutlinedTextField(
                         value = dishName,
@@ -136,25 +168,28 @@ fun EditActionSheet(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                     Button(
                         onClick = {
-                            val updatedG = card.grocery?.copy(dishName = dishName)
-                                ?: GroceryDetails(dishName = dishName)
-                            onSave(card.copy(grocery = updatedG))
+                            val items = card.grocery?.items ?: listOf(
+                                GroceryItem("g1", "Sample Grocery Item 1", "1 unit", false),
+                                GroceryItem("g2", "Sample Grocery Item 2", "2 units", false)
+                            )
+                            val updatedG = GroceryDetails(dishName = dishName, items = items)
+                            onSave(card.copy(category = IntentCategory.GROCERY, grocery = updatedG))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Verified Groceries")
+                        Text("Save to Groceries")
                     }
                 }
 
                 IntentCategory.EXPENSE -> {
-                    var vendor by remember { mutableStateOf(card.expense?.vendor ?: "") }
-                    var amountStr by remember { mutableStateOf((card.expense?.totalAmount ?: 0.0).toString()) }
+                    var vendor by remember { mutableStateOf(card.expense?.vendor ?: "Merchant / Store") }
+                    var amountStr by remember { mutableStateOf((card.expense?.totalAmount ?: 49.99).toString()) }
 
                     OutlinedTextField(
                         value = vendor,
@@ -170,26 +205,25 @@ fun EditActionSheet(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                     Button(
                         onClick = {
-                            val amt = amountStr.toDoubleOrNull() ?: (card.expense?.totalAmount ?: 0.0)
-                            val updatedExp = card.expense?.copy(vendor = vendor, totalAmount = amt)
-                                ?: ExpenseDetails(vendor = vendor, totalAmount = amt)
-                            onSave(card.copy(expense = updatedExp))
+                            val amt = amountStr.toDoubleOrNull() ?: 49.99
+                            val updatedExp = ExpenseDetails(vendor = vendor, totalAmount = amt, currency = "USD", dueDate = "2026-08-30", category = "Utilities", isPaid = false)
+                            onSave(card.copy(category = IntentCategory.EXPENSE, expense = updatedExp))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Verified Expense")
+                        Text("Save to Expenses")
                     }
                 }
 
                 IntentCategory.BOOKMARK -> {
-                    var headline by remember { mutableStateOf(card.bookmark?.headline ?: "") }
-                    var summary by remember { mutableStateOf(card.bookmark?.summary ?: "") }
+                    var headline by remember { mutableStateOf(card.bookmark?.headline ?: "Saved Note") }
+                    var summary by remember { mutableStateOf(card.bookmark?.summary ?: "Screenshot note summary") }
 
                     OutlinedTextField(
                         value = headline,
@@ -205,19 +239,18 @@ fun EditActionSheet(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                     Button(
                         onClick = {
-                            val updatedB = card.bookmark?.copy(headline = headline, summary = summary)
-                                ?: BookmarkDetails(headline = headline, summary = summary)
-                            onSave(card.copy(bookmark = updatedB))
+                            val updatedB = BookmarkDetails(headline = headline, summary = summary, keyTakeaways = listOf("Saved takeaway note"), sourcePlatform = "Screenshot Note")
+                            onSave(card.copy(category = IntentCategory.BOOKMARK, bookmark = updatedB))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Verified Bookmark")
+                        Text("Save to Bookmarks")
                     }
                 }
             }
