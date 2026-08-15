@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { 
   Sparkles, Calendar, ShoppingCart, Receipt, Bookmark, 
   Upload, Plus, Edit2, Trash2, CheckCircle2, AlertCircle, 
-  Copy, Download, ExternalLink, Search, Moon, Sun, X, Check, Share2
+  Copy, Download, ExternalLink, Search, Moon, Sun, X, Check, Share2, Camera
 } from 'lucide-react';
 
 interface EventDetails {
@@ -115,6 +115,7 @@ export default function App() {
   const [copiedToast, setCopiedToast] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (msg: string) => {
     setCopiedToast(msg);
@@ -123,7 +124,18 @@ export default function App() {
 
   const triggerFilePicker = () => {
     if (processingStep) return;
-    fileInputRef.current?.click();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const triggerCameraPicker = () => {
+    if (processingStep) return;
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
+      cameraInputRef.current.click();
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,7 +143,9 @@ export default function App() {
     if (files && files.length > 0) {
       processImageFile(files[0]);
     }
-    e.target.value = '';
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -328,14 +342,22 @@ export default function App() {
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileChange} 
+            accept="image/*,.png,.jpg,.jpeg,.webp,.bmp" 
+            className="hidden" 
+          />
+          <input 
+            type="file" 
+            ref={cameraInputRef} 
+            onChange={handleFileChange} 
             accept="image/*" 
+            capture="environment" 
             className="hidden" 
           />
           <div 
             onClick={triggerFilePicker}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            className="border-2 border-dashed border-indigo-500/40 bg-indigo-950/20 hover:bg-indigo-900/30 rounded-2xl p-5 text-center cursor-pointer transition-all group relative overflow-hidden"
+            className="border-2 border-dashed border-indigo-500/40 bg-indigo-950/20 hover:bg-indigo-900/30 rounded-2xl p-5 text-center cursor-pointer transition-all group relative overflow-hidden flex flex-col items-center justify-center"
           >
             {processingStep ? (
               <div className="py-3 flex flex-col items-center space-y-2">
@@ -347,8 +369,32 @@ export default function App() {
                 <div className="w-11 h-11 bg-indigo-600/20 text-indigo-400 rounded-2xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                   <Upload className="w-6 h-6" />
                 </div>
-                <h3 className="font-semibold text-sm text-slate-200">Select Screenshot from Gallery</h3>
-                <p className="text-xs text-slate-400 mt-1">Tap to browse files or drag & drop image</p>
+                <h3 className="font-semibold text-sm text-slate-200">Upload, Drop or Capture Screenshot</h3>
+                <p className="text-xs text-slate-400 mt-1">Tap to browse files, take photo, or drop receipt/flyer</p>
+                <div className="flex gap-2.5 mt-3">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerFilePicker();
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Select Screenshot</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerCameraPicker();
+                    }}
+                    className="bg-slate-800 hover:bg-slate-700 active:bg-slate-800 text-indigo-300 font-medium text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 border border-slate-700 shadow-md transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Take Photo</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
