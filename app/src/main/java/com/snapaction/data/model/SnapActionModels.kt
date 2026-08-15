@@ -46,12 +46,14 @@ data class GroceryDetails(
 
 @Serializable
 data class ExpenseDetails(
-    val vendor: String,
+    val vendor: String, // Heading: e.g. "Paid to Lucky Traders"
     val totalAmount: Double,
     val currency: String = "USD",
     val dueDate: String? = null, // Optional: Set only if applicable (e.g. Electric, Gas, Credit Card bills)
-    val category: String = "Utilities & Shopping",
-    val isPaid: Boolean = false
+    val category: String = "UPI Payment",
+    val isPaid: Boolean = false,
+    val isTransactionSms: Boolean = false,
+    val rawSmsText: String? = null
 )
 
 @Serializable
