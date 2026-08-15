@@ -11,39 +11,11 @@ class AiVisionRepository {
     val visionSystemPrompt = """
         You are SnapAction Vision AI Engine, an intelligent vision-LLM assistant specializing in OCR, scene recognition, and intent extraction from mobile images and screenshots.
 
-        Classification Categories:
-        1. "BILL_RECEIPT": Scanned invoices, restaurant/store receipts, digital payment screenshots.
-        2. "GROCERY_LIST": Written grocery lists, pantry snapshots, retail grocery items.
-        3. "FOOD_DISH": Cooked meals, plate photos, or food dishes (needs recipe/ingredient inference).
-        4. "PACKAGED_ITEM": Packaged food/beverage/household products with labels.
-        5. "OTHER": Fallback for bookmarks, memos, or general notes.
-
-        JSON Schema (Strict Output):
-        Ensure the LLM returns ONLY valid JSON matching this exact structure:
-        {
-          "detected_category": "BILL_RECEIPT" | "GROCERY_LIST" | "FOOD_DISH" | "PACKAGED_ITEM" | "OTHER",
-          "confidence_score": 0.95,
-          "summary_title": "string",
-          "expense_details": {
-            "is_expense": true,
-            "merchant": "string or null",
-            "total_amount": 0.0,
-            "currency": "USD",
-            "date": "YYYY-MM-DD or null"
-          },
-          "extracted_items": [
-            {
-              "name": "string",
-              "quantity": "string or null",
-              "estimated_price": 0.0
-            }
-          ],
-          "recipe_details": {
-            "dish_name": "string or null",
-            "estimated_ingredients_required": ["string"],
-            "notes": "string or null"
-          }
-        }
+        Intent Categories:
+        1. "EVENT": Concerts, parties, tickets, calendar flyers, scheduled appointments.
+        2. "GROCERY": Written grocery lists, pantry snapshots, plate dish photos (inferring required recipe ingredients), retail products.
+        3. "EXPENSE": Invoices, store receipts, utility bills, digital payment screenshots.
+        4. "BOOKMARK": General screenshot notes, web articles, quotes, educational memos.
     """.trimIndent()
 
     /**
@@ -53,10 +25,10 @@ class AiVisionRepository {
         emit(ProcessingState(step = ProcessingStep.ANALYZING, message = "Analyzing image structure & OCR text..."))
         delay(600)
 
-        emit(ProcessingState(step = ProcessingStep.CATEGORIZING, message = "Categorizing intent (BILL_RECEIPT / GROCERY_LIST / FOOD_DISH / PACKAGED_ITEM / OTHER)..."))
+        emit(ProcessingState(step = ProcessingStep.CATEGORIZING, message = "Categorizing intent (EVENT / GROCERY / EXPENSE / BOOKMARK)..."))
         delay(700)
 
-        emit(ProcessingState(step = ProcessingStep.EXTRACTING, message = "Extracting structured JSON action items..."))
+        emit(ProcessingState(step = ProcessingStep.EXTRACTING, message = "Extracting structured action items..."))
         delay(800)
 
         val parsedCard = createIntelligentParsedCard(imageUri)
@@ -67,83 +39,67 @@ class AiVisionRepository {
     private fun createIntelligentParsedCard(imageUri: String): SnapActionCard {
         val lowerUri = imageUri.lowercase()
         return when {
-            lowerUri.contains("bill") || lowerUri.contains("receipt") || lowerUri.contains("invoice") || lowerUri.contains("pay") -> {
+            lowerUri.contains("bill") || lowerUri.contains("receipt") || lowerUri.contains("invoice") || lowerUri.contains("pay") || lowerUri.contains("expense") -> {
                 SnapActionCard(
                     id = UUID.randomUUID().toString(),
-                    category = ClassificationCategory.BILL_RECEIPT,
+                    category = IntentCategory.EXPENSE,
                     confidenceScore = 0.98,
                     imageUri = imageUri,
-                    summaryTitle = "Grocery Market Receipt",
-                    expenseDetails = ExpenseDetails(
-                        isExpense = true,
-                        merchant = "Fresh Mart Supermarket",
-                        totalAmount = 84.50,
+                    expense = ExpenseDetails(
+                        vendor = "Utility Biller / Store Receipt",
+                        totalAmount = 49.99,
                         currency = "USD",
-                        date = "2026-08-15"
-                    ),
-                    extractedItems = listOf(
-                        ExtractedItem(name = "Organic Whole Milk 1 Gal", quantity = "1", estimatedPrice = 4.29),
-                        ExtractedItem(name = "Fresh Hass Avocados 4-pack", quantity = "1 pkg", estimatedPrice = 5.99),
-                        ExtractedItem(name = "Boneless Chicken Breast 2lb", quantity = "1", estimatedPrice = 12.50)
+                        dueDate = "2026-08-30",
+                        category = "Utilities & Shopping",
+                        isPaid = false
                     )
                 )
             }
-            lowerUri.contains("dish") || lowerUri.contains("meal") || lowerUri.contains("food") || lowerUri.contains("cook") -> {
+            lowerUri.contains("event") || lowerUri.contains("ticket") || lowerUri.contains("party") || lowerUri.contains("flyer") || lowerUri.contains("concert") -> {
                 SnapActionCard(
                     id = UUID.randomUUID().toString(),
-                    category = ClassificationCategory.FOOD_DISH,
-                    confidenceScore = 0.96,
+                    category = IntentCategory.EVENT,
+                    confidenceScore = 0.98,
                     imageUri = imageUri,
-                    summaryTitle = "Creamy Tuscan Garlic Chicken",
-                    recipeDetails = RecipeDetails(
-                        dishName = "Creamy Tuscan Garlic Chicken",
-                        estimatedIngredientsRequired = listOf(
-                            "Boneless Chicken Breasts",
-                            "Heavy Cream",
-                            "Sun-dried Tomatoes",
-                            "Baby Spinach",
-                            "Garlic Cloves",
-                            "Parmesan Cheese"
+                    event = EventDetails(
+                        title = "Scanned Event / Reminder",
+                        startDate = "2026-08-25",
+                        startTime = "19:00",
+                        location = "Main Event Venue",
+                        details = "Reminder details extracted from your uploaded screenshot flyer."
+                    )
+                )
+            }
+            lowerUri.contains("note") || lowerUri.contains("article") || lowerUri.contains("bookmark") || lowerUri.contains("memo") -> {
+                SnapActionCard(
+                    id = UUID.randomUUID().toString(),
+                    category = IntentCategory.BOOKMARK,
+                    confidenceScore = 0.95,
+                    imageUri = imageUri,
+                    bookmark = BookmarkDetails(
+                        headline = "Saved Screenshot Note",
+                        summary = "Extracted key summary notes and main concepts from screenshot.",
+                        keyTakeaways = listOf(
+                            "Concept 1 extracted from screenshot",
+                            "Key takeaway note saved"
                         ),
-                        notes = "Inferred recipe ingredients from plate photo."
-                    )
-                )
-            }
-            lowerUri.contains("packaged") || lowerUri.contains("item") || lowerUri.contains("product") -> {
-                SnapActionCard(
-                    id = UUID.randomUUID().toString(),
-                    category = ClassificationCategory.PACKAGED_ITEM,
-                    confidenceScore = 0.94,
-                    imageUri = imageUri,
-                    summaryTitle = "Organic Cold-Pressed Almond Milk",
-                    extractedItems = listOf(
-                        ExtractedItem(name = "Organic Almond Milk Unsweetened 64oz", quantity = "1 bottle", estimatedPrice = 4.99)
-                    )
-                )
-            }
-            lowerUri.contains("grocery") || lowerUri.contains("list") || lowerUri.contains("shopping") -> {
-                SnapActionCard(
-                    id = UUID.randomUUID().toString(),
-                    category = ClassificationCategory.GROCERY_LIST,
-                    confidenceScore = 0.97,
-                    imageUri = imageUri,
-                    summaryTitle = "Weekly Pantry & Produce List",
-                    extractedItems = listOf(
-                        ExtractedItem(name = "Bananas", quantity = "1 bunch", estimatedPrice = 1.99),
-                        ExtractedItem(name = "Greek Yogurt Vanilla 32oz", quantity = "1 tub", estimatedPrice = 5.49),
-                        ExtractedItem(name = "Rolled Oats 42oz", quantity = "1 container", estimatedPrice = 4.79)
+                        sourcePlatform = "Uploaded Image Note"
                     )
                 )
             }
             else -> {
                 SnapActionCard(
                     id = UUID.randomUUID().toString(),
-                    category = ClassificationCategory.OTHER,
-                    confidenceScore = 0.91,
+                    category = IntentCategory.GROCERY,
+                    confidenceScore = 0.96,
                     imageUri = imageUri,
-                    summaryTitle = "Saved Note & Bookmarked Snippet",
-                    recipeDetails = RecipeDetails(
-                        notes = "Extracted general text snippet and key concepts."
+                    grocery = GroceryDetails(
+                        dishName = "Recipe & Pantry Restock",
+                        items = listOf(
+                            GroceryItem("i1", "Item 1 from screenshot", "1 unit", false),
+                            GroceryItem("i2", "Item 2 from screenshot", "2 units", false),
+                            GroceryItem("i3", "Item 3 from screenshot", "To taste", false)
+                        )
                     )
                 )
             }
