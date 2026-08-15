@@ -73,18 +73,32 @@ class SnapViewModel(
         )
         _uiState.value = _uiState.value.copy(
             cards = listOf(newCard) + _uiState.value.cards,
+            selectedTab = FeedTab.REMINDERS,
             showAddEventModal = false
         )
     }
 
     fun uploadScreenshot(imageUri: String) {
+        val currentPreferred = when (_uiState.value.selectedTab) {
+            FeedTab.REMINDERS -> IntentCategory.EVENT
+            FeedTab.GROCERIES -> IntentCategory.GROCERY
+            FeedTab.EXPENSES -> IntentCategory.EXPENSE
+            FeedTab.BOOKMARKS -> IntentCategory.BOOKMARK
+        }
         viewModelScope.launch {
-            visionRepository.processScreenshot(imageUri).collect { state ->
+            visionRepository.processScreenshot(imageUri, currentPreferred).collect { state ->
                 if (state.step == ProcessingStep.COMPLETED && state.card != null) {
                     val updatedList = listOf(state.card) + _uiState.value.cards
+                    val targetTab = when (state.card.category) {
+                        IntentCategory.EVENT -> FeedTab.REMINDERS
+                        IntentCategory.GROCERY -> FeedTab.GROCERIES
+                        IntentCategory.EXPENSE -> FeedTab.EXPENSES
+                        IntentCategory.BOOKMARK -> FeedTab.BOOKMARKS
+                    }
                     _uiState.value = _uiState.value.copy(
                         processingState = null,
-                        cards = updatedList
+                        cards = updatedList,
+                        selectedTab = targetTab
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(processingState = state)
@@ -126,7 +140,17 @@ class SnapViewModel(
         val updatedCards = _uiState.value.cards.map {
             if (it.id == updatedCard.id) updatedCard else it
         }
-        _uiState.value = _uiState.value.copy(cards = updatedCards, activeEditCard = null)
+        val targetTab = when (updatedCard.category) {
+            IntentCategory.EVENT -> FeedTab.REMINDERS
+            IntentCategory.GROCERY -> FeedTab.GROCERIES
+            IntentCategory.EXPENSE -> FeedTab.EXPENSES
+            IntentCategory.BOOKMARK -> FeedTab.BOOKMARKS
+        }
+        _uiState.value = _uiState.value.copy(
+            cards = updatedCards, 
+            activeEditCard = null,
+            selectedTab = targetTab
+        )
     }
 
     fun deleteCard(cardId: String) {
