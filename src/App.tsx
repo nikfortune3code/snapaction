@@ -31,7 +31,7 @@ interface ExpenseDetails {
   vendor: string;
   totalAmount: number;
   currency: string;
-  dueDate: string;
+  dueDate?: string; // Optional: Only populated if applicable (e.g., Electric, Gas, Credit Card bills)
   category: string;
   isPaid: boolean;
 }
@@ -99,7 +99,7 @@ const INITIAL_DEMO_DATA: SnapActionCard[] = [
       totalAmount: 84.50,
       currency: 'USD',
       dueDate: '2026-08-15',
-      category: 'Utilities',
+      category: 'Electric Bill',
       isPaid: false
     }
   },
@@ -124,7 +124,7 @@ const INITIAL_DEMO_DATA: SnapActionCard[] = [
 
 export default function App() {
   const [cards, setCards] = useState<SnapActionCard[]>(INITIAL_DEMO_DATA);
-  const [activeTab, setActiveTab] = useState<'EVENT' | 'GROCERY' | 'EXPENSE' | 'BOOKMARK'>('EVENT');
+  const [activeTab, setActiveTab] = useState<'EVENT' | 'GROCERY' | 'EXPENSE' | 'BOOKMARK'>('EXPENSE');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [processingStep, setProcessingStep] = useState<string | null>(null);
@@ -194,11 +194,9 @@ export default function App() {
     const imageUrl = URL.createObjectURL(file);
     const fileName = file.name.toLowerCase();
 
-    // Use current active tab as fallback or detect keyword hints
-    let category: 'EVENT' | 'GROCERY' | 'EXPENSE' | 'BOOKMARK' = activeTab;
-    if (fileName.includes('bill') || fileName.includes('receipt') || fileName.includes('invoice') || fileName.includes('expense') || fileName.includes('pay')) {
-      category = 'EXPENSE';
-    } else if (fileName.includes('event') || fileName.includes('ticket') || fileName.includes('flyer') || fileName.includes('party') || fileName.includes('concert') || fileName.includes('reminder')) {
+    // Determine category: default to EXPENSE for receipts/bills/invoices or activeTab
+    let category: 'EVENT' | 'GROCERY' | 'EXPENSE' | 'BOOKMARK' = 'EXPENSE';
+    if (fileName.includes('event') || fileName.includes('ticket') || fileName.includes('flyer') || fileName.includes('party') || fileName.includes('concert') || fileName.includes('reminder')) {
       category = 'EVENT';
     } else if (fileName.includes('note') || fileName.includes('article') || fileName.includes('book') || fileName.includes('quote')) {
       category = 'BOOKMARK';
@@ -208,27 +206,50 @@ export default function App() {
 
     const cleanTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
 
-    setProcessingStep('Analyzing image structure & OCR text...');
+    setProcessingStep('Analyzing receipt/bill OCR data...');
     setTimeout(() => {
       setProcessingStep(`Categorizing intent (${category})...`);
       setTimeout(() => {
-        setProcessingStep('Extracting action items with Gemini AI...');
+        setProcessingStep('Extracting bill heading, amount, category & due date...');
         setTimeout(() => {
           let newCard: SnapActionCard;
 
           if (category === 'EXPENSE') {
+            // Intelligent Bill Heading, Category & Due Date (only if applicable like Electric, Gas, Credit Card)
+            let heading = cleanTitle.length > 3 ? cleanTitle : 'Store Receipt / Bill';
+            let expCat = 'Shopping Receipt';
+            let dueDate: string | undefined = undefined;
+
+            if (fileName.includes('electric') || fileName.includes('power')) {
+              heading = 'Electric Utility Bill';
+              expCat = 'Electric Bill';
+              dueDate = '2026-08-30';
+            } else if (fileName.includes('gas')) {
+              heading = 'Gas Utility Bill';
+              expCat = 'Gas Bill';
+              dueDate = '2026-08-28';
+            } else if (fileName.includes('card') || fileName.includes('credit')) {
+              heading = 'Credit Card Statement Bill';
+              expCat = 'Credit Card Bill';
+              dueDate = '2026-08-25';
+            } else if (fileName.includes('bill') || fileName.includes('utility')) {
+              heading = 'Monthly Utility Bill';
+              expCat = 'Utilities';
+              dueDate = '2026-08-30';
+            }
+
             newCard = {
               id: 'new-' + Date.now(),
               category: 'EXPENSE',
-              confidenceScore: 0.97,
+              confidenceScore: 0.98,
               imageUri: imageUrl,
               timestamp: 'Just now',
               expense: {
-                vendor: cleanTitle.length > 3 ? cleanTitle : 'Scanned Receipt / Biller',
-                totalAmount: 49.99,
+                vendor: heading,
+                totalAmount: 84.50,
                 currency: 'USD',
-                dueDate: new Date().toISOString().split('T')[0],
-                category: 'Utilities',
+                dueDate: dueDate,
+                category: expCat,
                 isPaid: false
               }
             };
@@ -280,9 +301,9 @@ export default function App() {
           }
 
           setCards([newCard, ...cards]);
-          setActiveTab(category); // Automatically switch active tab so user sees it!
+          setActiveTab(category);
           setProcessingStep(null);
-          showToast(`Added to ${category} tab!`);
+          showToast(`Receipt/Bill added to ${category} tab!`);
         }, 800);
       }, 700);
     }, 600);
@@ -456,8 +477,8 @@ END:VCALENDAR`;
                 <div className="w-10 h-10 bg-indigo-600/20 text-indigo-400 rounded-2xl flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
                   <Upload className="w-5 h-5" />
                 </div>
-                <h3 className="font-semibold text-xs text-slate-200">Upload Screenshot or Take Photo</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Extracts Reminders, Groceries, Expenses & Bookmarks</p>
+                <h3 className="font-semibold text-xs text-slate-200">Upload Receipt, Bill or Screenshot</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Extracts Bill Heading, Amount, Category & Due Date</p>
                 <div className="flex gap-2 mt-2.5">
                   <button
                     type="button"
@@ -512,7 +533,7 @@ END:VCALENDAR`;
 
           {filteredCards.length === 0 ? (
             <div className="py-12 text-center text-slate-500 space-y-3">
-              <Calendar className="w-10 h-10 mx-auto text-slate-600 stroke-1" />
+              <Receipt className="w-10 h-10 mx-auto text-slate-600 stroke-1" />
               <p className="text-xs">No {activeTab.toLowerCase()} items found.</p>
               {activeTab === 'EVENT' && (
                 <button
@@ -536,7 +557,7 @@ END:VCALENDAR`;
                     }`}>
                       {card.category === 'EVENT' ? 'REMINDER / EVENT' :
                        card.category === 'GROCERY' ? 'GROCERIES & DISHES' :
-                       card.category === 'EXPENSE' ? 'EXPENSES' : 'BOOKMARK & NOTE'}
+                       card.category === 'EXPENSE' ? 'EXPENSES & BILLS' : 'BOOKMARK & NOTE'}
                     </span>
                     
                     <div className="flex items-center gap-1">
@@ -559,7 +580,7 @@ END:VCALENDAR`;
                     <img 
                       src={card.imageUri} 
                       alt="Reference" 
-                      className="w-18 h-18 object-cover rounded-xl border border-slate-700 flex-shrink-0 cursor-pointer"
+                      className="w-20 h-20 object-cover rounded-xl border border-slate-700 flex-shrink-0 cursor-pointer"
                       onClick={() => setEditingCard(card)}
                     />
 
@@ -609,11 +630,15 @@ END:VCALENDAR`;
                         </div>
                       )}
 
+                      {/* Expense Card Body: Heading, Amount, Category & Conditional Due Date */}
                       {card.category === 'EXPENSE' && card.expense && (
                         <div className="space-y-1">
                           <h4 className="font-bold text-slate-100 text-sm">{card.expense.vendor}</h4>
                           <p className="text-rose-400 font-extrabold text-base">${card.expense.totalAmount.toFixed(2)} {card.expense.currency}</p>
-                          <p className="text-slate-400 text-[11px]">Due: {card.expense.dueDate}</p>
+                          <p className="text-indigo-300 font-semibold text-[11px]">Category: {card.expense.category}</p>
+                          {card.expense.dueDate && (
+                            <p className="text-rose-300 font-medium text-[11px]">🗓️ Due Date: {card.expense.dueDate}</p>
+                          )}
                           <button
                             onClick={() => toggleExpensePaid(card.id)}
                             className={`mt-1 font-semibold text-[10px] px-2.5 py-1 rounded-lg border transition-colors ${
@@ -777,6 +802,49 @@ END:VCALENDAR`;
                 ))}
               </div>
             </div>
+
+            {editingCard.category === 'EXPENSE' && editingCard.expense && (
+              <div className="space-y-3 pt-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-medium">Bill Heading / Merchant *</label>
+                  <input 
+                    type="text" 
+                    value={editingCard.expense.vendor} 
+                    onChange={e => setEditingCard({ ...editingCard, expense: { ...editingCard.expense!, vendor: e.target.value } })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" 
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-medium">Total Amount ($)</label>
+                    <input 
+                      type="number" 
+                      value={editingCard.expense.totalAmount} 
+                      onChange={e => setEditingCard({ ...editingCard, expense: { ...editingCard.expense!, totalAmount: parseFloat(e.target.value) || 0 } })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-medium">Category</label>
+                    <input 
+                      type="text" 
+                      value={editingCard.expense.category} 
+                      onChange={e => setEditingCard({ ...editingCard, expense: { ...editingCard.expense!, category: e.target.value } })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" 
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-medium">Due Date (Optional - e.g. Electric, Gas, Credit Card)</label>
+                  <input 
+                    type="date" 
+                    value={editingCard.expense.dueDate || ''} 
+                    onChange={e => setEditingCard({ ...editingCard, expense: { ...editingCard.expense!, dueDate: e.target.value || undefined } })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" 
+                  />
+                </div>
+              </div>
+            )}
 
             <button 
               onClick={() => {
