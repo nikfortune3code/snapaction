@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.7.0] - 2026-08-16
+
+### 🚀 Added
+- **Receipt, Bill & Invoice Expense Structuring**:
+  - Implemented automatic classification placing all receipts, store invoices, and utility bills directly into the **Expenses** tab.
+  - Extracted structured fields: **Bill Heading** (Vendor/Store), **Total Amount** ($), **Expense Category** (e.g. Electric Bill, Gas Bill, Credit Card, Utilities, Retail), and **Due Date** (populated ONLY if applicable, e.g. for recurring Electric, Gas, or Credit Card bills).
+  - Made `dueDate` optional (`dueDate: String?` in Kotlin, `dueDate?: string` in TypeScript) so instant store receipts without due dates omit the due date field cleanly.
+
+---
+
 ## [1.6.0] - 2026-08-16
 
 ### 🐛 Fixed
