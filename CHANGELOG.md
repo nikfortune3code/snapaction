@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.5.0] - 2026-08-16
+
+### 🐛 Fixed
+- **Real Image Pixel Spend Extraction via Gemini Vision AI**:
+  - Connected `AiVisionRepository.kt` to the Gemini Vision AI server API (`http://10.0.2.2:3001/api/analyze-image`).
+  - Transmits actual receipt image bytes so Gemini Vision AI reads the exact printed shop name and total spend amount directly from the image pixels instead of relying on URI path string heuristics.
+
+---
+
 ## [2.4.0] - 2026-08-16
 
 ### 🚀 Added
