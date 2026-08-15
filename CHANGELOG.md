@@ -6,11 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.4.0] - 2026-08-16
+
+### 🚀 Added
+- **Manual Event Reminder Creation**:
+  - Added a prominent **"Add Event"** button directly inside the **Reminders** tab header in both Android (Compose) and Web (React).
+  - Implemented an interactive manual event creation dialog allowing users to manually enter event reminders (Title, Start Date, Start Time, Location, Description) without requiring a screenshot upload.
+- **Strict Reminders Tab Isolation**:
+  - Updated filtering rules so that the **Reminders** tab strictly displays ONLY `EVENT` category items. Items from Groceries, Expenses, and Bookmarks are completely hidden from the Reminders view.
+
+---
+
 ## [1.3.0] - 2026-08-15
 
 ### 🚀 Added
 - **Navigation Restructuring**:
-  - **`Reminders` Tab**: Reverted 'All Feeds' to Reminders feed with start/end dates, location, event details, Google Calendar sync, `.ics` file downloads, and manual reminder entry modal.
+  - **`Reminders` Tab**: Reverted 'All Feeds' to Reminders feed with start/end dates, location, event details, Google Calendar sync, and `.ics` file downloads.
   - **`Expenses` Tab**: Renamed 'Bills' tab to Expenses, featuring merchant tracking, total amounts, due dates, and interactive paid/unpaid toggles.
   - **`Groceries` Tab**: Merged food dish recipe ingredient checklists directly into the Groceries tab alongside standard pantry items.
   - **`Bookmarks` Tab**: Replaced 'Dishes' tab with Bookmarks to store headlines, summaries, and key takeaways from saved screenshot notes.
