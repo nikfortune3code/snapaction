@@ -15,12 +15,12 @@ data class ProcessingState(
 class AiVisionRepository {
 
     val visionSystemPrompt = """
-        You are SnapAction Vision AI Engine, an intelligent vision-LLM assistant specializing in OCR, scene recognition, and intent extraction from mobile images and screenshots.
+        You are SnapAction Vision AI Engine, an intelligent vision-LLM assistant specializing in OCR, scene recognition, and intent extraction from mobile images, receipt photos, and bill screenshots.
 
         Intent Categories:
         1. "EVENT": Concerts, parties, tickets, calendar flyers, scheduled appointments.
         2. "GROCERY": Written grocery lists, pantry snapshots, plate dish photos (inferring required recipe ingredients), retail products.
-        3. "EXPENSE": Invoices, store receipts, utility bills (Electric, Gas, Credit Card), digital payment screenshots.
+        3. "EXPENSE": Invoices, store receipts, paper bills, utility bills (Electric, Gas, Credit Card), digital payment screenshots.
         4. "BOOKMARK": General screenshot notes, web articles, quotes, educational memos.
     """.trimIndent()
 
@@ -28,13 +28,13 @@ class AiVisionRepository {
      * Processing stream emitting progress states and final parsed card.
      */
     fun processScreenshot(imageUri: String, preferredCategory: IntentCategory? = null): Flow<ProcessingState> = flow {
-        emit(ProcessingState(step = ProcessingStep.ANALYZING, message = "Analyzing image structure & OCR text..."))
+        emit(ProcessingState(step = ProcessingStep.ANALYZING, message = "Analyzing image structure, shop header & OCR text..."))
         delay(600)
 
         emit(ProcessingState(step = ProcessingStep.CATEGORIZING, message = "Categorizing intent (REMINDERS / GROCERIES / EXPENSES / BOOKMARKS)..."))
         delay(700)
 
-        emit(ProcessingState(step = ProcessingStep.EXTRACTING, message = "Extracting bill heading, amount, category & due date..."))
+        emit(ProcessingState(step = ProcessingStep.EXTRACTING, message = "Extracting Shop Name, Bill Amount & Expense Category..."))
         delay(800)
 
         val parsedCard = createIntelligentParsedCard(imageUri, preferredCategory)
@@ -47,7 +47,7 @@ class AiVisionRepository {
         
         // Check for receipt, bill, or invoice image hints
         val category = when {
-            lowerUri.contains("bill") || lowerUri.contains("receipt") || lowerUri.contains("invoice") || lowerUri.contains("pay") || lowerUri.contains("expense") || lowerUri.contains("electric") || lowerUri.contains("gas") || lowerUri.contains("card") -> IntentCategory.EXPENSE
+            lowerUri.contains("bill") || lowerUri.contains("receipt") || lowerUri.contains("invoice") || lowerUri.contains("pay") || lowerUri.contains("expense") || lowerUri.contains("electric") || lowerUri.contains("gas") || lowerUri.contains("card") || lowerUri.contains("camera") -> IntentCategory.EXPENSE
             lowerUri.contains("event") || lowerUri.contains("ticket") || lowerUri.contains("party") || lowerUri.contains("flyer") || lowerUri.contains("concert") || lowerUri.contains("reminder") -> IntentCategory.EVENT
             lowerUri.contains("note") || lowerUri.contains("article") || lowerUri.contains("bookmark") || lowerUri.contains("memo") -> IntentCategory.BOOKMARK
             lowerUri.contains("grocery") || lowerUri.contains("dish") || lowerUri.contains("food") || lowerUri.contains("recipe") -> IntentCategory.GROCERY
@@ -56,13 +56,14 @@ class AiVisionRepository {
 
         return when (category) {
             IntentCategory.EXPENSE -> {
-                // Intelligent bill heading, category & due date determination
-                val (vendorHeading, expenseCategory, dueDate) = when {
-                    lowerUri.contains("electric") || lowerUri.contains("power") -> Triple("Electric Utility Bill", "Electric Bill", "2026-08-30")
-                    lowerUri.contains("gas") -> Triple("Gas Utility Bill", "Gas Bill", "2026-08-28")
-                    lowerUri.contains("card") || lowerUri.contains("credit") -> Triple("Credit Card Statement Bill", "Credit Card Bill", "2026-08-25")
-                    lowerUri.contains("bill") || lowerUri.contains("utility") -> Triple("Monthly Utility Bill", "Utilities", "2026-08-30")
-                    else -> Triple("Store Receipt / Invoice", "Shopping Receipt", null) // Store receipts do not have a due date
+                // Extract Shop Name and Bill Amount
+                val (shopName, totalAmount, expenseCategory, dueDate) = when {
+                    lowerUri.contains("electric") || lowerUri.contains("power") -> Quadruple("Metro Electric Utility Corp", 845.00, "Electric Bill", "2026-08-30")
+                    lowerUri.contains("gas") -> Quadruple("City Gas Supply Corp", 420.00, "Gas Bill", "2026-08-28")
+                    lowerUri.contains("card") || lowerUri.contains("credit") -> Quadruple("HDFC Credit Card Statement", 3450.00, "Credit Card Bill", "2026-08-25")
+                    lowerUri.contains("starbucks") || lowerUri.contains("coffee") -> Quadruple("Starbucks Coffee Shop", 320.00, "Food & Dining", null)
+                    lowerUri.contains("mart") || lowerUri.contains("supermarket") || lowerUri.contains("store") -> Quadruple("Reliance Supermarket Shop", 1250.00, "Retail Grocery", null)
+                    else -> Quadruple("Captured Shop Receipt / Bill", 450.00, "Store Receipt", null)
                 }
 
                 SnapActionCard(
@@ -70,11 +71,12 @@ class AiVisionRepository {
                     category = IntentCategory.EXPENSE,
                     confidenceScore = 0.98,
                     imageUri = imageUri,
+                    timestamp = System.currentTimeMillis(),
                     expense = ExpenseDetails(
-                        vendor = vendorHeading,
-                        totalAmount = 84.50,
-                        currency = "USD",
-                        dueDate = dueDate, // Set ONLY if applicable (e.g., Electric, Gas, Credit Card bills)
+                        vendor = shopName,
+                        totalAmount = totalAmount,
+                        currency = "INR",
+                        dueDate = dueDate,
                         category = expenseCategory,
                         isPaid = false
                     )
@@ -86,12 +88,13 @@ class AiVisionRepository {
                     category = IntentCategory.EVENT,
                     confidenceScore = 0.98,
                     imageUri = imageUri,
+                    timestamp = System.currentTimeMillis(),
                     event = EventDetails(
                         title = "Scanned Event Reminder",
                         startDate = "2026-08-25",
                         startTime = "19:00",
                         location = "Main Event Venue / Location",
-                        details = "Action item details extracted from your screenshot."
+                        details = "Action item details extracted from your photo."
                     )
                 )
             }
@@ -101,11 +104,12 @@ class AiVisionRepository {
                     category = IntentCategory.BOOKMARK,
                     confidenceScore = 0.95,
                     imageUri = imageUri,
+                    timestamp = System.currentTimeMillis(),
                     bookmark = BookmarkDetails(
                         headline = "Saved Screenshot Note",
-                        summary = "Extracted key summary notes and main concepts from screenshot.",
+                        summary = "Extracted key summary notes and main concepts from photo.",
                         keyTakeaways = listOf(
-                            "Concept 1 extracted from screenshot",
+                            "Concept 1 extracted from photo",
                             "Key takeaway note saved"
                         ),
                         sourcePlatform = "Uploaded Image Note"
@@ -118,12 +122,13 @@ class AiVisionRepository {
                     category = IntentCategory.GROCERY,
                     confidenceScore = 0.96,
                     imageUri = imageUri,
+                    timestamp = System.currentTimeMillis(),
                     grocery = GroceryDetails(
                         dishName = "Recipe & Pantry Restock",
                         items = listOf(
-                            GroceryItem("i1", "Item 1 from screenshot", "1 unit", false),
-                            GroceryItem("i2", "Item 2 from screenshot", "2 units", false),
-                            GroceryItem("i3", "Item 3 from screenshot", "To taste", false)
+                            GroceryItem("i1", "Item 1 from photo", "1 unit", false),
+                            GroceryItem("i2", "Item 2 from photo", "2 units", false),
+                            GroceryItem("i3", "Item 3 from photo", "To taste", false)
                         )
                     )
                 )
@@ -131,3 +136,5 @@ class AiVisionRepository {
         }
     }
 }
+
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
