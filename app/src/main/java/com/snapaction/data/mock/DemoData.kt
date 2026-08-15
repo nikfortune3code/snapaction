@@ -52,6 +52,22 @@ object DemoData {
             )
         ),
         SnapActionCard(
+            id = "demo-past-expense-1",
+            category = IntentCategory.EXPENSE,
+            confidenceScore = 0.99,
+            imageUri = "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=800&auto=format&fit=crop&q=60",
+            timestamp = System.currentTimeMillis() - 3600000L * 24 * 35, // July 2026
+            expense = ExpenseDetails(
+                vendor = "Paid to City Water Dept",
+                totalAmount = 52.00,
+                currency = "USD",
+                dueDate = null,
+                category = "Utilities",
+                isPaid = true,
+                isTransactionSms = true
+            )
+        ),
+        SnapActionCard(
             id = "demo-4",
             category = IntentCategory.BOOKMARK,
             confidenceScore = 0.94,
