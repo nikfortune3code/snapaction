@@ -12,14 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.snapaction.data.model.ClassificationCategory
+import com.snapaction.data.model.IntentCategory
 import com.snapaction.ui.FeedTab
 import com.snapaction.ui.SnapViewModel
 import com.snapaction.ui.components.ActionCardItem
 import com.snapaction.ui.components.EditActionSheet
 import com.snapaction.ui.components.UploadHub
-import com.snapaction.ui.theme.ExpenseBadgeColor
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,14 +59,8 @@ fun MainScreen(
                 NavigationBarItem(
                     selected = uiState.selectedTab == FeedTab.ALL,
                     onClick = { viewModel.selectTab(FeedTab.ALL) },
-                    icon = { Icon(Icons.Default.DynamicFeed, contentDescription = "All") },
-                    label = { Text("All Feeds") }
-                )
-                NavigationBarItem(
-                    selected = uiState.selectedTab == FeedTab.EXPENSES,
-                    onClick = { viewModel.selectTab(FeedTab.EXPENSES) },
-                    icon = { Icon(Icons.Default.ReceiptLong, contentDescription = "Bills") },
-                    label = { Text("Bills") }
+                    icon = { Icon(Icons.Default.CalendarToday, contentDescription = "Reminders") },
+                    label = { Text("Reminders") }
                 )
                 NavigationBarItem(
                     selected = uiState.selectedTab == FeedTab.GROCERIES,
@@ -77,10 +69,16 @@ fun MainScreen(
                     label = { Text("Groceries") }
                 )
                 NavigationBarItem(
+                    selected = uiState.selectedTab == FeedTab.EXPENSES,
+                    onClick = { viewModel.selectTab(FeedTab.EXPENSES) },
+                    icon = { Icon(Icons.Default.Receipt, contentDescription = "Expenses") },
+                    label = { Text("Expenses") }
+                )
+                NavigationBarItem(
                     selected = uiState.selectedTab == FeedTab.EVENTS,
                     onClick = { viewModel.selectTab(FeedTab.EVENTS) },
-                    icon = { Icon(Icons.Default.Restaurant, contentDescription = "Dishes") },
-                    label = { Text("Dishes") }
+                    icon = { Icon(Icons.Default.Bookmark, contentDescription = "Bookmarks") },
+                    label = { Text("Bookmarks") }
                 )
             }
         }
@@ -90,20 +88,18 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Upload & Ingestion Hub
             UploadHub(
                 processingState = uiState.processingState,
                 onPickImage = { uri -> viewModel.uploadScreenshot(uri) }
             )
 
-            // Search Bar
             OutlinedTextField(
                 value = uiState.searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp),
-                placeholder = { Text("Search extracted receipts, recipes, items...") },
+                placeholder = { Text("Search extracted reminders, groceries, expenses, bookmarks...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
                 shape = MaterialTheme.shapes.medium
@@ -111,17 +107,17 @@ fun MainScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Filtered Cards Feed
             val filteredCards = remember(uiState.cards, uiState.selectedTab, uiState.searchQuery) {
                 uiState.cards.filter { card ->
                     val matchesTab = when (uiState.selectedTab) {
                         FeedTab.ALL -> true
-                        FeedTab.EXPENSES -> card.category == ClassificationCategory.BILL_RECEIPT
-                        FeedTab.GROCERIES -> card.category == ClassificationCategory.GROCERY_LIST || card.category == ClassificationCategory.PACKAGED_ITEM
-                        FeedTab.EVENTS -> card.category == ClassificationCategory.FOOD_DISH
+                        FeedTab.GROCERIES -> card.category == IntentCategory.GROCERY
+                        FeedTab.EXPENSES -> card.category == IntentCategory.EXPENSE
+                        FeedTab.EVENTS -> card.category == IntentCategory.BOOKMARK
                     }
                     val matchesSearch = if (uiState.searchQuery.isEmpty()) true else {
-                        card.summaryTitle.lowercase().contains(uiState.searchQuery.lowercase())
+                        val title = card.event?.title ?: card.grocery?.dishName ?: card.expense?.vendor ?: card.bookmark?.headline ?: ""
+                        title.lowercase().contains(uiState.searchQuery.lowercase())
                     }
                     matchesTab && matchesSearch
                 }
@@ -141,7 +137,6 @@ fun MainScreen(
         }
     }
 
-    // Modal Edit Sheet
     uiState.activeEditCard?.let { activeCard ->
         EditActionSheet(
             card = activeCard,
