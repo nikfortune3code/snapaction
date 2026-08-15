@@ -6,6 +6,7 @@ import com.snapaction.data.mock.DemoData
 import com.snapaction.data.model.*
 import com.snapaction.data.repository.AiVisionRepository
 import com.snapaction.data.repository.ProcessingState
+import com.snapaction.data.repository.SmsTransactionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,11 +31,34 @@ data class UiState(
 )
 
 class SnapViewModel(
-    private val visionRepository: AiVisionRepository = AiVisionRepository()
+    private val visionRepository: AiVisionRepository = AiVisionRepository(),
+    private val smsRepository: SmsTransactionRepository = SmsTransactionRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    init {
+        // Automatically detect transaction SMS messages ('spent', 'sent', 'debited', 'paid') when app opens
+        scanTransactionSmsOnLaunch()
+    }
+
+    private fun scanTransactionSmsOnLaunch() {
+        val detectedSmsCards = smsRepository.getInitialTransactionSms()
+        val combinedCards = detectedSmsCards + _uiState.value.cards
+        _uiState.value = _uiState.value.copy(cards = combinedCards)
+    }
+
+    fun processTransactionSmsText(smsText: String) {
+        val parsedCard = smsRepository.parseTransactionSms(smsText)
+        if (parsedCard != null) {
+            val updatedCards = listOf(parsedCard) + _uiState.value.cards
+            _uiState.value = _uiState.value.copy(
+                cards = updatedCards,
+                selectedTab = FeedTab.EXPENSES
+            )
+        }
+    }
 
     fun selectTab(tab: FeedTab) {
         _uiState.value = _uiState.value.copy(selectedTab = tab)
