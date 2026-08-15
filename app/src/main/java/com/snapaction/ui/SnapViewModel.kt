@@ -1,5 +1,6 @@
 package com.snapaction.ui
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snapaction.data.mock.DemoData
@@ -102,7 +103,7 @@ class SnapViewModel(
         )
     }
 
-    fun uploadScreenshot(imageUri: String) {
+    fun uploadScreenshot(imageUri: String, context: Context? = null) {
         val currentPreferred = when (_uiState.value.selectedTab) {
             FeedTab.REMINDERS -> IntentCategory.EVENT
             FeedTab.GROCERIES -> IntentCategory.GROCERY
@@ -110,7 +111,7 @@ class SnapViewModel(
             FeedTab.BOOKMARKS -> IntentCategory.BOOKMARK
         }
         viewModelScope.launch {
-            visionRepository.processScreenshot(imageUri, currentPreferred).collect { state ->
+            visionRepository.processScreenshot(context, imageUri, currentPreferred).collect { state ->
                 if (state.step == ProcessingStep.COMPLETED && state.card != null) {
                     val updatedList = listOf(state.card) + _uiState.value.cards
                     val targetTab = when (state.card.category) {
