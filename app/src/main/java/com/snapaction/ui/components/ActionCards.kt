@@ -50,7 +50,7 @@ fun ActionCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                CategoryBadge(category = card.category)
+                CategoryBadge(category = card.category, isSms = card.expense?.isTransactionSms == true)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { onEditCard(card) }) {
                         Icon(
@@ -78,7 +78,7 @@ fun ActionCardItem(
             ) {
                 Image(
                     painter = rememberAsyncImagePainter(card.imageUri),
-                    contentDescription = "Original Screenshot Reference",
+                    contentDescription = "Original Reference",
                     modifier = Modifier
                         .size(84.dp)
                         .clip(RoundedCornerShape(12.dp))
@@ -105,11 +105,11 @@ fun ActionCardItem(
 }
 
 @Composable
-fun CategoryBadge(category: IntentCategory) {
+fun CategoryBadge(category: IntentCategory, isSms: Boolean = false) {
     val (color, icon, label) = when (category) {
         IntentCategory.EVENT -> Triple(EventBadgeColor, Icons.Default.CalendarToday, "REMINDER")
         IntentCategory.GROCERY -> Triple(GroceryBadgeColor, Icons.Default.ShoppingCart, "GROCERIES")
-        IntentCategory.EXPENSE -> Triple(ExpenseBadgeColor, Icons.Default.Receipt, "EXPENSES & BILLS")
+        IntentCategory.EXPENSE -> if (isSms) Triple(ExpenseBadgeColor, Icons.Default.Sms, "SMS TRANSACTION") else Triple(ExpenseBadgeColor, Icons.Default.Receipt, "EXPENSES & BILLS")
         IntentCategory.BOOKMARK -> Triple(BookmarkBadgeColor, Icons.Default.Bookmark, "BOOKMARKS")
     }
 
@@ -200,18 +200,28 @@ fun ExpenseCardContent(
 ) {
     if (expense == null) return
 
-    // Bill Heading
+    val formattedAmount = if (expense.currency == "INR") {
+        String.format(Locale.US, "₹%.2f", expense.totalAmount)
+    } else {
+        String.format(Locale.US, "$%.2f %s", expense.totalAmount, expense.currency)
+    }
+
+    // 1. Transaction Heading (e.g., "Paid to Lucky Traders")
     Text(text = expense.vendor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     
-    // Amount
+    Spacer(modifier = Modifier.height(2.dp))
+
+    // 2. Amount below heading
     Text(
-        text = String.format(Locale.US, "$%.2f %s", expense.totalAmount, expense.currency),
+        text = formattedAmount,
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.ExtraBold,
         color = ExpenseBadgeColor
     )
     
-    // Category Tag
+    Spacer(modifier = Modifier.height(2.dp))
+
+    // 3. Category below amount
     if (expense.category.isNotBlank()) {
         Text(
             text = "Category: ${expense.category}",
@@ -221,7 +231,7 @@ fun ExpenseCardContent(
         )
     }
 
-    // Due Date - Shown ONLY if applicable (e.g. Electric Bill, Gas Bill, Credit Card Bill)
+    // Optional Due Date (Shown ONLY if applicable for utility bills)
     if (!expense.dueDate.isNullOrBlank()) {
         Text(
             text = "🗓️ Due Date: ${expense.dueDate}",
