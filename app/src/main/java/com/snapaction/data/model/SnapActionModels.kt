@@ -2,6 +2,9 @@ package com.snapaction.data.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 enum class IntentCategory {
     EVENT,
@@ -75,4 +78,9 @@ data class SnapActionCard(
     val grocery: GroceryDetails? = null,
     val expense: ExpenseDetails? = null,
     val bookmark: BookmarkDetails? = null
-)
+) {
+    fun getMonthYearString(): String {
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.US)
+        return sdf.format(Date(timestamp))
+    }
+}
