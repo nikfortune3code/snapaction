@@ -1,5 +1,9 @@
 package com.snapaction.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,9 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.snapaction.data.model.IntentCategory
 import com.snapaction.data.model.SnapActionCard
@@ -34,9 +40,34 @@ fun MainScreen(
     viewModel: SnapViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var isSearchExpanded by remember { mutableStateOf(false) }
     var showSmsInputDialog by remember { mutableStateOf(false) }
     var selectedMonthFilter by remember { mutableStateOf("All Months") }
+    var showSmsPermissionDialog by remember { mutableStateOf(false) }
+
+    // Runtime SMS Permission launcher
+    val smsPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.scanDeviceSmsMessages(context)
+        } else {
+            showSmsPermissionDialog = true
+        }
+    }
+
+    // Helper to trigger SMS scan (checks permission first)
+    val onScanMessages = {
+        val hasPerm = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.READ_SMS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasPerm) {
+            viewModel.scanDeviceSmsMessages(context)
+        } else {
+            smsPermissionLauncher.launch(Manifest.permission.READ_SMS)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -129,7 +160,6 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val context = androidx.compose.ui.platform.LocalContext.current
             UploadHub(
                 processingState = uiState.processingState,
                 onPickImage = { uri -> viewModel.uploadScreenshot(uri, context) }
@@ -157,25 +187,118 @@ fun MainScreen(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
             } else if (uiState.selectedTab == FeedTab.EXPENSES) {
-                // SMS Transaction Parsing Shortcut & Monthly Analysis Header in Expenses Tab
-                Box(
+                // Expenses Tab: Scan Messages + Manual SMS entry
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Primary: Scan native SMS button
+                    Button(
+                        onClick = { onScanMessages() },
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !uiState.isSmsScanning
+                    ) {
+                        if (uiState.isSmsScanning) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Scanning Messages...", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        } else {
+                            Icon(Icons.Default.Message, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Scan Messages", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    // Secondary: Manual SMS paste
                     OutlinedButton(
                         onClick = { showSmsInputDialog = true },
                         modifier = Modifier
                             .fillMaxWidth(0.85f)
-                            .height(42.dp),
+                            .height(48.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Process SMS Transaction", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("Enter SMS Text", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Show count badge after scanning
+                    if (uiState.smsScannedCount > 0) {
+                        LaunchedEffect(uiState.smsScannedCount) {
+                            kotlinx.coroutines.delay(4000)
+                            viewModel.clearSmsScannedCount()
+                        }
+                        Card(
+                            modifier = Modifier.fillMaxWidth(0.85f),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Found ${uiState.smsScannedCount} new transaction${if (uiState.smsScannedCount != 1) "s" else ""} from Messages",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
                     }
                 }
+            }
+
+            // Permission Denied Explanation Dialog
+            if (showSmsPermissionDialog) {
+                AlertDialog(
+                    onDismissRequest = { showSmsPermissionDialog = false },
+                    icon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                    title = { Text("SMS Permission Required") },
+                    text = {
+                        Text(
+                            "SnapAction needs access to your Messages to automatically detect bank " +
+                            "and UPI transaction SMS messages.\n\n" +
+                            "Go to Settings → Apps → SnapAction → Permissions → SMS and enable it."
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showSmsPermissionDialog = false
+                            // Open app permission settings
+                            val intent = android.content.Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.fromParts("package", context.packageName, null)
+                            )
+                            context.startActivity(intent)
+                        }) {
+                            Text("Open Settings")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showSmsPermissionDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
 
             // Filtering Logic per Tab (Global Search searches all fields when active)
