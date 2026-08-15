@@ -1,5 +1,7 @@
 package com.snapaction.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.snapaction.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -9,6 +11,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.DataOutputStream
+import java.io.File
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -32,7 +35,7 @@ class AiVisionRepository {
     /**
      * Processing stream emitting progress states and final parsed card.
      */
-    fun processScreenshot(imageUri: String, preferredCategory: IntentCategory? = null): Flow<ProcessingState> = flow {
+    fun processScreenshot(context: Context? = null, imageUri: String, preferredCategory: IntentCategory? = null): Flow<ProcessingState> = flow {
         emit(ProcessingState(step = ProcessingStep.ANALYZING, message = "Reading receipt image pixels & shop headers..."))
         delay(400)
 
@@ -41,22 +44,27 @@ class AiVisionRepository {
 
         emit(ProcessingState(step = ProcessingStep.EXTRACTING, message = "Extracting exact Shop Name & Bill Amount in INR..."))
 
-        val parsedCard = analyzeImageViaServerOrFallback(imageUri, preferredCategory)
+        val parsedCard = analyzeImageViaServerOrFallback(context, imageUri, preferredCategory)
 
         emit(ProcessingState(step = ProcessingStep.COMPLETED, message = "Action card ready!", card = parsedCard))
     }
 
     private suspend fun analyzeImageViaServerOrFallback(
+        context: Context?,
         imageUri: String,
         preferredCategory: IntentCategory?
     ): SnapActionCard = withContext(Dispatchers.IO) {
-        // Try calling the Node.js Gemini Vision server first
-        for (endpoint in serverEndpoints) {
-            try {
-                val serverResult = callGeminiVisionApi(endpoint, imageUri)
-                if (serverResult != null) return@withContext serverResult
-            } catch (e: Exception) {
-                // Endpoint unreached, try next endpoint
+        val imageBytes = getBytesFromUri(context, imageUri)
+
+        if (imageBytes != null && imageBytes.isNotEmpty()) {
+            // Try calling the Node.js Gemini Vision server with REAL image bytes
+            for (endpoint in serverEndpoints) {
+                try {
+                    val serverResult = callGeminiVisionApiWithBytes(endpoint, imageUri, imageBytes)
+                    if (serverResult != null) return@withContext serverResult
+                } catch (e: Exception) {
+                    // Endpoint unreached, try next endpoint
+                }
             }
         }
 
@@ -64,7 +72,24 @@ class AiVisionRepository {
         return@withContext createFallbackCard(imageUri, preferredCategory)
     }
 
-    private fun callGeminiVisionApi(serverUrl: String, imageUri: String): SnapActionCard? {
+    private fun getBytesFromUri(context: Context?, imageUriString: String): ByteArray? {
+        return try {
+            if (context != null && imageUriString.startsWith("content://")) {
+                context.contentResolver.openInputStream(Uri.parse(imageUriString))?.use { it.readBytes() }
+            } else {
+                val cleanPath = when {
+                    imageUriString.startsWith("file://") -> imageUriString.substring(7)
+                    else -> imageUriString
+                }
+                val file = File(cleanPath)
+                if (file.exists()) file.readBytes() else null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun callGeminiVisionApiWithBytes(serverUrl: String, imageUri: String, imageBytes: ByteArray): SnapActionCard? {
         val boundary = "*****" + System.currentTimeMillis() + "*****"
         val url = URL(serverUrl)
         val connection = url.openConnection() as HttpURLConnection
@@ -72,8 +97,8 @@ class AiVisionRepository {
         connection.doOutput = true
         connection.useCaches = false
         connection.requestMethod = "POST"
-        connection.connectTimeout = 4000
-        connection.readTimeout = 7000
+        connection.connectTimeout = 5000
+        connection.readTimeout = 10000
         connection.setRequestProperty("Connection", "Keep-Alive")
         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
 
@@ -82,9 +107,8 @@ class AiVisionRepository {
             dos.writeBytes("Content-Disposition: form-data; name=\"image\"; filename=\"receipt.jpg\"\r\n")
             dos.writeBytes("Content-Type: image/jpeg\r\n\r\n")
             
-            // Dummy pixel payload bytes if stream is raw URI
-            val dummyBytes = ByteArray(1024) { 0 }
-            dos.write(dummyBytes)
+            // Write REAL image pixel bytes to backend server
+            dos.write(imageBytes)
             dos.writeBytes("\r\n--$boundary--\r\n")
             dos.flush()
         }
@@ -94,26 +118,35 @@ class AiVisionRepository {
             val responseText = reader.use { it.readText() }
             val json = JSONObject(responseText)
             if (json.optBoolean("success")) {
-              val data = json.getJSONObject("data")
-              val exp = data.getJSONObject("expense_details")
-              val merchant = exp.optString("merchant", "Captured Receipt")
-              val amount = exp.optDouble("total_amount", 450.0)
+                val data = json.getJSONObject("data")
+                val exp = data.optJSONObject("expense_details")
+                val merchant = exp?.optString("merchant") ?: data.optString("summary_title", "Captured Receipt")
+                val amount = exp?.optDouble("total_amount", 0.0) ?: 0.0
+                val detectedCategory = data.optString("detected_category", "BILL_RECEIPT")
 
-              return SnapActionCard(
-                  id = UUID.randomUUID().toString(),
-                  category = IntentCategory.EXPENSE,
-                  confidenceScore = 0.99,
-                  imageUri = imageUri,
-                  timestamp = System.currentTimeMillis(),
-                  expense = ExpenseDetails(
-                      vendor = if (merchant.isNotBlank() && merchant != "null") merchant else "Captured Receipt",
-                      totalAmount = if (amount > 0) amount else 450.0,
-                      currency = "INR",
-                      dueDate = null,
-                      category = "Store Receipt / Invoice",
-                      isPaid = false
-                  )
-              )
+                val cardCategory = when (detectedCategory) {
+                    "BILL_RECEIPT" -> IntentCategory.EXPENSE
+                    "GROCERY_LIST" -> IntentCategory.GROCERY
+                    "FOOD_DISH" -> IntentCategory.GROCERY
+                    "OTHER" -> IntentCategory.BOOKMARK
+                    else -> IntentCategory.EXPENSE
+                }
+
+                return SnapActionCard(
+                    id = UUID.randomUUID().toString(),
+                    category = cardCategory,
+                    confidenceScore = json.optJSONObject("data")?.optDouble("confidence_score", 0.99) ?: 0.99,
+                    imageUri = imageUri,
+                    timestamp = System.currentTimeMillis(),
+                    expense = if (cardCategory == IntentCategory.EXPENSE) ExpenseDetails(
+                        vendor = if (merchant.isNotBlank() && merchant != "null") merchant else "Captured Receipt",
+                        totalAmount = if (amount > 0) amount else 450.0,
+                        currency = "INR",
+                        dueDate = null,
+                        category = "Store Receipt / Invoice",
+                        isPaid = false
+                    ) else null
+                )
             }
         }
         return null
