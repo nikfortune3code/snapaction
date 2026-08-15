@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.6.0] - 2026-08-16
+
+### 🐛 Fixed
+- **Image Parsing & Tab Auto-Switching**:
+  - Fixed issue where uploaded screenshots (with numeric Android content URIs like `content://media/external/images/...`) were defaulting to Groceries without showing in the active tab.
+  - Implemented `preferredCategory` fallback in `AiVisionRepository.kt` to use the currently active tab when categorizing incoming images.
+  - Added automatic active tab switching in `SnapViewModel.kt` so whenever a new screenshot is parsed, the app automatically switches to the parsed card's tab so the user sees it immediately.
+  - Added interactive Category Tab selection chips in `EditActionSheet.kt` so users can reassign any screenshot to Reminders, Groceries, Expenses, or Bookmarks with a single tap.
+
+---
+
 ## [1.5.0] - 2026-08-16
 
 ### 🚀 Added
