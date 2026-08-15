@@ -6,11 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.3.0] - 2026-08-16
+
+### 🧹 Refactored
+- **Clean State Launch & Unique Transaction Isolation**:
+  - Removed all dummy sample data from `DemoData.kt` and initial sample SMS messages from `SmsTransactionRepository.kt`.
+  - Ensured every transaction is treated as a unique, independent item with a unique UUID (`id`).
+  - Ensured the Monthly Spend Analysis banner displays overall monthly totals, paid totals, and pending bill totals without aggregating per-recipient amounts.
+
+---
+
 ## [2.2.0] - 2026-08-16
 
 ### 🚀 Added
 - **Default Expense Currency to INR (₹)**:
-  - Updated default expense currency in data models (`ExpenseDetails.currency = "INR"`) and mock datasets to **INR (₹)** by default.
+  - Updated default expense currency in data models (`ExpenseDetails.currency = "INR"`) to **INR (₹)** by default.
   - Formatted all spend analysis banners, monthly headers, and expense card totals with **`₹`** symbol formatting.
 
 ---
@@ -33,7 +43,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Implemented `SmsTransactionRepository.kt` to parse bank and payment SMS messages whenever the user opens the application.
   - Detects keywords: **`spent`**, **`sent`**, **`debited`**, or **`paid`**.
   - Dynamically constructs the heading for where money was paid (e.g. **`Paid to Lucky Traders`** or **`Paid to Swiggy`**).
-  - Displays **Heading** at the top, **Amount** (e.g. `₹250.00` / `$45.00`) directly below heading, and **Category** (e.g. `UPI Payment`) below the amount.
+  - Displays **Heading** at the top, **Amount** (e.g. `₹250.00`) directly below heading, and **Category** (e.g. `UPI Payment`) below the amount.
   - Automatically places parsed transaction SMS expenses straight into the **Expenses** tab with a `✓ Paid` status badge.
   - Added an interactive **"Process SMS Transaction"** shortcut button inside the Expenses tab.
 
