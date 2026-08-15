@@ -6,13 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.8.0] - 2026-08-16
+
+### 🧹 Refactored
+- **Complete Removal of Web Prototype Code**:
+  - Removed all web application files (`src/App.tsx`, `src/main.tsx`, `index.html`, `vite.config.ts`, `tsconfig.json`).
+  - Purged React web dependencies from `package.json`, focusing the repository exclusively on the native **Android Application** (`/app`) and Node.js Express backend API (`/server`).
+
+---
+
 ## [1.7.0] - 2026-08-16
 
 ### 🚀 Added
 - **Receipt, Bill & Invoice Expense Structuring**:
   - Implemented automatic classification placing all receipts, store invoices, and utility bills directly into the **Expenses** tab.
   - Extracted structured fields: **Bill Heading** (Vendor/Store), **Total Amount** ($), **Expense Category** (e.g. Electric Bill, Gas Bill, Credit Card, Utilities, Retail), and **Due Date** (populated ONLY if applicable, e.g. for recurring Electric, Gas, or Credit Card bills).
-  - Made `dueDate` optional (`dueDate: String?` in Kotlin, `dueDate?: string` in TypeScript) so instant store receipts without due dates omit the due date field cleanly.
+  - Made `dueDate` optional (`dueDate: String?` in Kotlin) so instant store receipts without due dates omit the due date field cleanly.
 
 ---
 
@@ -40,7 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### 🚀 Added
 - **Manual Event Reminder Creation**:
-  - Added a prominent **"Add Event"** button directly inside the **Reminders** tab header in both Android (Compose) and Web (React).
+  - Added a prominent **"Add Event"** button directly inside the **Reminders** tab header in Android (Compose).
   - Implemented an interactive manual event creation dialog allowing users to manually enter event reminders (Title, Start Date, Start Time, Location, Description) without requiring a screenshot upload.
 - **Strict Reminders Tab Isolation**:
   - Updated filtering rules so that the **Reminders** tab strictly displays ONLY `EVENT` category items. Items from Groceries, Expenses, and Bookmarks are completely hidden from the Reminders view.
@@ -68,22 +77,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### 🚀 Added
 - **5-Category LLM Intent Classification**: Standardized image classification across 5 strict categories (`BILL_RECEIPT`, `GROCERY_LIST`, `FOOD_DISH`, `PACKAGED_ITEM`, `OTHER`).
 - **Strict JSON Schema Enforcement**: Updated Gemini Vision LLM system prompt and parser to strictly require structured output.
-- **Cross-Platform Model Alignment**: Updated Kotlin data models in Android (`SnapActionModels.kt`) and TypeScript interfaces in Web (`src/App.tsx`).
+- **Cross-Platform Model Alignment**: Updated Kotlin data models in Android (`SnapActionModels.kt`).
 
 ---
 
 ## [1.1.0] - 2026-08-15
 
 ### 🚀 Added
-- **Direct Camera Capture Support**: Integrated HTML5 camera capture (`capture="environment"`).
+- **Direct Camera Capture Support**: Integrated HTML5/Android camera capture.
 - **Dual Upload Controls**: Rendered distinct **"Select Screenshot"** and **"Take Photo"** buttons.
 - **Project Documentation**: Created `README.md` containing architecture, feature breakdowns, and technology stacks.
 - **Remote Synchronization**: Synced project codebase and documentation directly with GitHub repository (`nikfortune3code/snapaction`).
-
-### 🐛 Fixed
-- **Screenshot Selection Failure**: Fixed file picker re-selection issue by clearing `fileInputRef.current.value`.
-- **Jetpack Compose Launcher Conflict**: Fixed duplicate activity launcher invocation in `UploadHub.kt`.
-- **Expanded File Formats**: Added explicit support for `.png`, `.jpg`, `.jpeg`, `.webp`, and `.bmp`.
 
 ---
 
@@ -95,4 +99,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Interactive grocery checklist with clipboard export.
 - Expense tracker with unpaid total calculations.
 - Human-in-the-loop verification and action card editing modal.
-- Dual web prototype (React + Vite + TailwindCSS) and native Android app (Kotlin + Jetpack Compose).
+- Native Android app (Kotlin + Jetpack Compose).
