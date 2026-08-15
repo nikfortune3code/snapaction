@@ -76,181 +76,88 @@ fun EditActionSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Form Fields based on Category
+            var title by remember { mutableStateOf(card.summaryTitle) }
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Action Summary Title") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             when (card.category) {
-                IntentCategory.EVENT -> {
-                    var title by remember { mutableStateOf(card.event?.title ?: "") }
-                    var date by remember { mutableStateOf(card.event?.startDate ?: "") }
-                    var time by remember { mutableStateOf(card.event?.startTime ?: "") }
-                    var location by remember { mutableStateOf(card.event?.location ?: "") }
-                    var details by remember { mutableStateOf(card.event?.details ?: "") }
+                ClassificationCategory.BILL_RECEIPT -> {
+                    var merchant by remember { mutableStateOf(card.expenseDetails?.merchant ?: "") }
+                    var amountStr by remember { mutableStateOf((card.expenseDetails?.totalAmount ?: 0.0).toString()) }
 
                     OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text("Event Title") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = date,
-                            onValueChange = { date = it },
-                            label = { Text("Start Date") },
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = time,
-                            onValueChange = { time = it },
-                            label = { Text("Start Time") },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = location,
-                        onValueChange = { location = it },
-                        label = { Text("Location") },
+                        value = merchant,
+                        onValueChange = { merchant = it },
+                        label = { Text("Merchant / Vendor") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
-                        value = details,
-                        onValueChange = { details = it },
-                        label = { Text("Details & Description") },
+                        value = amountStr,
+                        onValueChange = { amountStr = it },
+                        label = { Text("Total Amount ($)") },
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(
                         onClick = {
-                            val updatedEvent = card.event?.copy(
-                                title = title,
-                                startDate = date,
-                                startTime = time,
-                                location = location,
-                                details = details
-                            )
-                            onSave(card.copy(event = updatedEvent))
+                            val amt = amountStr.toDoubleOrNull() ?: (card.expenseDetails?.totalAmount ?: 0.0)
+                            val updatedExp = card.expenseDetails?.copy(merchant = merchant, totalAmount = amt)
+                            onSave(card.copy(summaryTitle = title, expenseDetails = updatedExp))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Verified Event")
+                        Text("Save Verified Receipt")
                     }
                 }
 
-                IntentCategory.GROCERY -> {
-                    var dishName by remember { mutableStateOf(card.grocery?.dishName ?: "") }
+                ClassificationCategory.FOOD_DISH -> {
+                    var dishName by remember { mutableStateOf(card.recipeDetails?.dishName ?: "") }
 
                     OutlinedTextField(
                         value = dishName,
                         onValueChange = { dishName = it },
-                        label = { Text("Recipe / List Name") },
+                        label = { Text("Dish Name") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(text = "Extracted Ingredients & Items", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    card.grocery?.items?.forEach { item ->
-                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "• ${item.name}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                            Text(text = item.quantity, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(
                         onClick = {
-                            val updatedGrocery = card.grocery?.copy(dishName = dishName)
-                            onSave(card.copy(grocery = updatedGrocery))
+                            val updatedRec = card.recipeDetails?.copy(dishName = dishName)
+                            onSave(card.copy(summaryTitle = title, recipeDetails = updatedRec))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Verified Grocery List")
+                        Text("Save Verified Recipe")
                     }
                 }
 
-                IntentCategory.EXPENSE -> {
-                    var vendor by remember { mutableStateOf(card.expense?.vendor ?: "") }
-                    var amountStr by remember { mutableStateOf((card.expense?.totalAmount ?: 0.0).toString()) }
-                    var dueDate by remember { mutableStateOf(card.expense?.dueDate ?: "") }
-
-                    OutlinedTextField(
-                        value = vendor,
-                        onValueChange = { vendor = it },
-                        label = { Text("Vendor / Biller Name") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = amountStr,
-                            onValueChange = { amountStr = it },
-                            label = { Text("Total Amount ($)") },
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = dueDate,
-                            onValueChange = { dueDate = it },
-                            label = { Text("Due Date") },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
+                else -> {
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(
                         onClick = {
-                            val amt = amountStr.toDoubleOrNull() ?: (card.expense?.totalAmount ?: 0.0)
-                            val updatedExpense = card.expense?.copy(vendor = vendor, totalAmount = amt, dueDate = dueDate)
-                            onSave(card.copy(expense = updatedExpense))
+                            onSave(card.copy(summaryTitle = title))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Verified Expense")
-                    }
-                }
-
-                IntentCategory.BOOKMARK -> {
-                    var headline by remember { mutableStateOf(card.bookmark?.headline ?: "") }
-                    var summary by remember { mutableStateOf(card.bookmark?.summary ?: "") }
-
-                    OutlinedTextField(
-                        value = headline,
-                        onValueChange = { headline = it },
-                        label = { Text("Headline / Note Title") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = summary,
-                        onValueChange = { summary = it },
-                        label = { Text("Summary") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = {
-                            val updatedBookmark = card.bookmark?.copy(headline = headline, summary = summary)
-                            onSave(card.copy(bookmark = updatedBookmark))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.Save, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Verified Bookmark")
+                        Text("Save Verified Item")
                     }
                 }
             }
