@@ -44,8 +44,8 @@ object DemoData {
             timestamp = System.currentTimeMillis() - 3600000 * 12,
             expense = ExpenseDetails(
                 vendor = "Metro Electric Utility Corp",
-                totalAmount = 84.50,
-                currency = "USD",
+                totalAmount = 845.00,
+                currency = "INR",
                 dueDate = "2026-08-15",
                 category = "Utilities",
                 isPaid = false
@@ -59,8 +59,8 @@ object DemoData {
             timestamp = System.currentTimeMillis() - 3600000L * 24 * 35, // July 2026
             expense = ExpenseDetails(
                 vendor = "Paid to City Water Dept",
-                totalAmount = 52.00,
-                currency = "USD",
+                totalAmount = 520.00,
+                currency = "INR",
                 dueDate = null,
                 category = "Utilities",
                 isPaid = true,
