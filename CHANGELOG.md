@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.4.0] - 2026-08-16
+
+### 🚀 Added
+- **Automatic Shop Name & Bill Amount Detection**:
+  - Enhanced `AiVisionRepository.kt` and Gemini Vision server (`server/index.js`) to automatically extract the **Shop/Store Name** (e.g. *Reliance Supermarket*, *Starbucks Coffee*, *Metro Utility Corp*) and **Total Bill Amount** (in INR `₹`) whenever a user captures a photo of any receipt, bill, or paper invoice.
+  - Automatically structures the extracted shop name as the card heading and places the bill amount and expense category directly into the **Expenses** tab.
+
+---
+
 ## [2.3.0] - 2026-08-16
 
 ### 🧹 Refactored
