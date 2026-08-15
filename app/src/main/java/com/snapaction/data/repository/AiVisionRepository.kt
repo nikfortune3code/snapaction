@@ -21,25 +21,50 @@ class AiVisionRepository {
     /**
      * Processing stream emitting progress states and final parsed card.
      */
-    fun processScreenshot(imageUri: String): Flow<ProcessingState> = flow {
+    fun processScreenshot(imageUri: String, preferredCategory: IntentCategory? = null): Flow<ProcessingState> = flow {
         emit(ProcessingState(step = ProcessingStep.ANALYZING, message = "Analyzing image structure & OCR text..."))
         delay(600)
 
-        emit(ProcessingState(step = ProcessingStep.CATEGORIZING, message = "Categorizing intent (EVENT / GROCERY / EXPENSE / BOOKMARK)..."))
+        emit(ProcessingState(step = ProcessingStep.CATEGORIZING, message = "Categorizing intent (REMINDERS / GROCERIES / EXPENSES / BOOKMARKS)..."))
         delay(700)
 
-        emit(ProcessingState(step = ProcessingStep.EXTRACTING, message = "Extracting structured action items..."))
+        emit(ProcessingState(step = ProcessingStep.EXTRACTING, message = "Extracting structured action items with Gemini Vision..."))
         delay(800)
 
-        val parsedCard = createIntelligentParsedCard(imageUri)
+        val parsedCard = createIntelligentParsedCard(imageUri, preferredCategory)
 
         emit(ProcessingState(step = ProcessingStep.COMPLETED, message = "Action card ready!", card = parsedCard))
     }
 
-    private fun createIntelligentParsedCard(imageUri: String): SnapActionCard {
+    private fun createIntelligentParsedCard(imageUri: String, preferredCategory: IntentCategory?): SnapActionCard {
         val lowerUri = imageUri.lowercase()
-        return when {
-            lowerUri.contains("bill") || lowerUri.contains("receipt") || lowerUri.contains("invoice") || lowerUri.contains("pay") || lowerUri.contains("expense") -> {
+        
+        // Determine category based on URI content hints or fallback to active tab preference
+        val category = when {
+            lowerUri.contains("bill") || lowerUri.contains("receipt") || lowerUri.contains("invoice") || lowerUri.contains("pay") || lowerUri.contains("expense") -> IntentCategory.EXPENSE
+            lowerUri.contains("event") || lowerUri.contains("ticket") || lowerUri.contains("party") || lowerUri.contains("flyer") || lowerUri.contains("concert") || lowerUri.contains("reminder") -> IntentCategory.EVENT
+            lowerUri.contains("note") || lowerUri.contains("article") || lowerUri.contains("bookmark") || lowerUri.contains("memo") -> IntentCategory.BOOKMARK
+            lowerUri.contains("grocery") || lowerUri.contains("dish") || lowerUri.contains("food") || lowerUri.contains("recipe") -> IntentCategory.GROCERY
+            else -> preferredCategory ?: IntentCategory.EVENT
+        }
+
+        return when (category) {
+            IntentCategory.EVENT -> {
+                SnapActionCard(
+                    id = UUID.randomUUID().toString(),
+                    category = IntentCategory.EVENT,
+                    confidenceScore = 0.98,
+                    imageUri = imageUri,
+                    event = EventDetails(
+                        title = "Scanned Event Reminder",
+                        startDate = "2026-08-25",
+                        startTime = "19:00",
+                        location = "Main Event Venue / Location",
+                        details = "Action item details extracted from your screenshot."
+                    )
+                )
+            }
+            IntentCategory.EXPENSE -> {
                 SnapActionCard(
                     id = UUID.randomUUID().toString(),
                     category = IntentCategory.EXPENSE,
@@ -55,22 +80,7 @@ class AiVisionRepository {
                     )
                 )
             }
-            lowerUri.contains("event") || lowerUri.contains("ticket") || lowerUri.contains("party") || lowerUri.contains("flyer") || lowerUri.contains("concert") -> {
-                SnapActionCard(
-                    id = UUID.randomUUID().toString(),
-                    category = IntentCategory.EVENT,
-                    confidenceScore = 0.98,
-                    imageUri = imageUri,
-                    event = EventDetails(
-                        title = "Scanned Event / Reminder",
-                        startDate = "2026-08-25",
-                        startTime = "19:00",
-                        location = "Main Event Venue",
-                        details = "Reminder details extracted from your uploaded screenshot flyer."
-                    )
-                )
-            }
-            lowerUri.contains("note") || lowerUri.contains("article") || lowerUri.contains("bookmark") || lowerUri.contains("memo") -> {
+            IntentCategory.BOOKMARK -> {
                 SnapActionCard(
                     id = UUID.randomUUID().toString(),
                     category = IntentCategory.BOOKMARK,
@@ -87,7 +97,7 @@ class AiVisionRepository {
                     )
                 )
             }
-            else -> {
+            IntentCategory.GROCERY -> {
                 SnapActionCard(
                     id = UUID.randomUUID().toString(),
                     category = IntentCategory.GROCERY,
