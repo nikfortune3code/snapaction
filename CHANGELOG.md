@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.5.0] - 2026-08-16
+
+### 🚀 Added
+- **Native Android Architecture Focus**:
+  - Re-architected and updated documentation, project scripts, and application metadata to focus exclusively on native **Android Application** development (Kotlin 2.0, Jetpack Compose, Material 3, ViewModel, StateFlow, Android Calendar Integration).
+  - Maintained the Node.js Express server (`/server`) for server-side Gemini Vision API structured output processing.
+
+---
+
 ## [1.4.0] - 2026-08-16
 
 ### 🚀 Added
