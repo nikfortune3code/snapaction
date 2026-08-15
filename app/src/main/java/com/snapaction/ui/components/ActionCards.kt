@@ -49,7 +49,7 @@ fun ActionCardItem(
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            // Header Row: Category Badge + Options Menu
+            // Header Row: Category Badge + Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -76,12 +76,11 @@ fun ActionCardItem(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Main Body: Screenshot Thumbnail + Dynamic Extracted Content
+            // Main Body
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Screenshot Thumbnail
                 Image(
                     painter = rememberAsyncImagePainter(card.imageUri),
                     contentDescription = "Original Screenshot",
@@ -97,21 +96,12 @@ fun ActionCardItem(
                     contentScale = ContentScale.Crop
                 )
 
-                // Extracted Card Details
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = card.summaryTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-
                     when (card.category) {
-                        ClassificationCategory.BILL_RECEIPT -> BillReceiptContent(card.expenseDetails, card.extractedItems)
-                        ClassificationCategory.FOOD_DISH -> FoodDishContent(card.recipeDetails)
-                        ClassificationCategory.GROCERY_LIST -> ExtractedItemsListContent(card.extractedItems)
-                        ClassificationCategory.PACKAGED_ITEM -> ExtractedItemsListContent(card.extractedItems)
-                        ClassificationCategory.OTHER -> OtherNotesContent(card.recipeDetails?.notes)
+                        IntentCategory.EVENT -> EventCardContent(card.event)
+                        IntentCategory.GROCERY -> GroceryCardContent(card.id, card.grocery, onToggleGrocery)
+                        IntentCategory.EXPENSE -> ExpenseCardContent(card.id, card.expense, onTogglePaid)
+                        IntentCategory.BOOKMARK -> BookmarkCardContent(card.bookmark)
                     }
                 }
             }
@@ -120,13 +110,12 @@ fun ActionCardItem(
 }
 
 @Composable
-fun CategoryBadge(category: ClassificationCategory) {
+fun CategoryBadge(category: IntentCategory) {
     val (color, icon, label) = when (category) {
-        ClassificationCategory.BILL_RECEIPT -> Triple(ExpenseBadgeColor, Icons.Default.ReceiptLong, "BILL / RECEIPT")
-        ClassificationCategory.GROCERY_LIST -> Triple(GroceryBadgeColor, Icons.Default.ShoppingCart, "GROCERY LIST")
-        ClassificationCategory.FOOD_DISH -> Triple(EventBadgeColor, Icons.Default.Restaurant, "FOOD DISH / RECIPE")
-        ClassificationCategory.PACKAGED_ITEM -> Triple(BookmarkBadgeColor, Icons.Default.Inventory2, "PACKAGED ITEM")
-        ClassificationCategory.OTHER -> Triple(BookmarkBadgeColor, Icons.Default.Bookmark, "OTHER / NOTE")
+        IntentCategory.EVENT -> Triple(EventBadgeColor, Icons.Default.CalendarToday, "EVENT / REMINDER")
+        IntentCategory.GROCERY -> Triple(GroceryBadgeColor, Icons.Default.ShoppingCart, "GROCERIES & DISHES")
+        IntentCategory.EXPENSE -> Triple(ExpenseBadgeColor, Icons.Default.Receipt, "EXPENSES")
+        IntentCategory.BOOKMARK -> Triple(BookmarkBadgeColor, Icons.Default.Bookmark, "BOOKMARKS & NOTES")
     }
 
     Surface(
@@ -146,69 +135,109 @@ fun CategoryBadge(category: ClassificationCategory) {
 }
 
 @Composable
-fun BillReceiptContent(expenseDetails: ExpenseDetails?, items: List<ExtractedItem>) {
-    if (expenseDetails != null && expenseDetails.totalAmount != null) {
-        Text(
-            text = String.format(Locale.US, "$%.2f %s", expenseDetails.totalAmount, expenseDetails.currency ?: "USD"),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold,
-            color = ExpenseBadgeColor
-        )
-        expenseDetails.merchant?.let {
-            Text(text = "Merchant: $it", style = MaterialTheme.typography.bodySmall)
-        }
-        expenseDetails.date?.let {
-            Text(text = "Date: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-    if (items.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(4.dp))
-        items.take(3).forEach { item ->
-            Text(text = "• ${item.name}" + if (item.quantity != null) " (${item.quantity})" else "", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
+fun EventCardContent(event: EventDetails?) {
+    val context = LocalContext.current
+    if (event == null) return
 
-@Composable
-fun FoodDishContent(recipeDetails: RecipeDetails?) {
-    if (recipeDetails == null) return
-    recipeDetails.dishName?.let {
-        Text(text = "Dish: $it", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    Text(text = event.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(text = "📅 ${event.startDate} at ${event.startTime}", style = MaterialTheme.typography.bodySmall)
+    if (event.location.isNotBlank()) {
+        Text(text = "📍 ${event.location}", style = MaterialTheme.typography.bodySmall)
     }
-    if (recipeDetails.estimatedIngredientsRequired.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(text = "Inferred Ingredients:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-        recipeDetails.estimatedIngredientsRequired.take(4).forEach { ing ->
-            Text(text = "• $ing", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
 
-@Composable
-fun ExtractedItemsListContent(items: List<ExtractedItem>) {
-    items.take(4).forEach { item ->
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "• ${item.name}" + if (item.quantity != null) " (${item.quantity})" else "",
-                style = MaterialTheme.typography.bodySmall
-            )
-            item.estimatedPrice?.let { price ->
-                Text(
-                    text = String.format(Locale.US, "$%.2f", price),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold
-                )
+    Spacer(modifier = Modifier.height(8.dp))
+    Button(
+        onClick = {
+            val intent = Intent(Intent.ACTION_INSERT).apply {
+                data = Uri.parse("content://com.android.calendar/events")
+                putExtra("title", event.title)
+                putExtra("eventLocation", event.location)
+                putExtra("description", event.details)
             }
+            context.startActivity(intent)
+        },
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(vertical = 4.dp),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(14.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text("Add to Google Calendar", fontSize = 11.sp)
+    }
+}
+
+@Composable
+fun GroceryCardContent(
+    cardId: String,
+    grocery: GroceryDetails?,
+    onToggle: (String, String) -> Unit
+) {
+    if (grocery == null) return
+    Text(text = grocery.dishName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Spacer(modifier = Modifier.height(4.dp))
+
+    grocery.items.take(4).forEach { item ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().clickable { onToggle(cardId, item.id) }
+        ) {
+            Checkbox(
+                checked = item.isChecked,
+                onCheckedChange = { onToggle(cardId, item.id) },
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "${item.name} (${item.quantity})",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
 
 @Composable
-fun OtherNotesContent(notes: String?) {
-    notes?.let {
-        Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+fun ExpenseCardContent(
+    cardId: String,
+    expense: ExpenseDetails?,
+    onTogglePaid: (String) -> Unit
+) {
+    if (expense == null) return
+    Text(text = expense.vendor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Text(
+        text = String.format(Locale.US, "$%.2f %s", expense.totalAmount, expense.currency),
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.ExtraBold,
+        color = ExpenseBadgeColor
+    )
+    Text(text = "Due: ${expense.dueDate}", style = MaterialTheme.typography.bodySmall)
+
+    Spacer(modifier = Modifier.height(6.dp))
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Button(
+            onClick = { onTogglePaid(cardId) },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (expense.isPaid) MaterialTheme.colorScheme.secondary else ExpenseBadgeColor
+            ),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(if (expense.isPaid) "✓ Paid" else "Mark Paid", fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+fun BookmarkCardContent(bookmark: BookmarkDetails?) {
+    if (bookmark == null) return
+    Text(text = bookmark.headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(text = bookmark.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (bookmark.keyTakeaways.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(4.dp))
+        bookmark.keyTakeaways.take(2).forEach { point ->
+            Text(text = "• $point", style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
