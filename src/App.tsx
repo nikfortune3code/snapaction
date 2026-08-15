@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { 
   Sparkles, Calendar, ShoppingCart, Receipt, Bookmark, 
-  Upload, Plus, Edit2, Trash2, CheckCircle2, AlertCircle, 
-  Copy, Download, ExternalLink, Search, Moon, Sun, X, Check, Share2, Camera, BellPlus
+  Upload, Plus, Edit2, Trash2, CheckCircle2, 
+  Download, Search, Moon, Sun, X, Check, Camera, BellPlus
 } from 'lucide-react';
 
 interface EventDetails {
@@ -194,13 +194,16 @@ export default function App() {
     const imageUrl = URL.createObjectURL(file);
     const fileName = file.name.toLowerCase();
 
-    let category: 'EVENT' | 'GROCERY' | 'EXPENSE' | 'BOOKMARK' = 'GROCERY';
+    // Use current active tab as fallback or detect keyword hints
+    let category: 'EVENT' | 'GROCERY' | 'EXPENSE' | 'BOOKMARK' = activeTab;
     if (fileName.includes('bill') || fileName.includes('receipt') || fileName.includes('invoice') || fileName.includes('expense') || fileName.includes('pay')) {
       category = 'EXPENSE';
     } else if (fileName.includes('event') || fileName.includes('ticket') || fileName.includes('flyer') || fileName.includes('party') || fileName.includes('concert') || fileName.includes('reminder')) {
       category = 'EVENT';
-    } else if (fileName.includes('note') || fileName.includes('article') || fileName.includes('book') || fileName.includes('quote') || fileName.includes('dish')) {
+    } else if (fileName.includes('note') || fileName.includes('article') || fileName.includes('book') || fileName.includes('quote')) {
       category = 'BOOKMARK';
+    } else if (fileName.includes('grocery') || fileName.includes('dish') || fileName.includes('food') || fileName.includes('recipe')) {
+      category = 'GROCERY';
     }
 
     const cleanTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
@@ -221,7 +224,7 @@ export default function App() {
               imageUri: imageUrl,
               timestamp: 'Just now',
               expense: {
-                vendor: cleanTitle.length > 3 ? cleanTitle : 'Scanned Receipt/Expense',
+                vendor: cleanTitle.length > 3 ? cleanTitle : 'Scanned Receipt / Biller',
                 totalAmount: 49.99,
                 currency: 'USD',
                 dueDate: new Date().toISOString().split('T')[0],
@@ -240,8 +243,8 @@ export default function App() {
                 title: cleanTitle.length > 3 ? cleanTitle : 'Scanned Event / Reminder',
                 startDate: new Date().toISOString().split('T')[0],
                 startTime: '19:00',
-                location: 'Main Venue / Location',
-                details: 'Action item details extracted from your screenshot.'
+                location: 'Main Event Location',
+                details: 'Action item details extracted from your uploaded screenshot.'
               }
             };
           } else if (category === 'BOOKMARK') {
@@ -277,8 +280,9 @@ export default function App() {
           }
 
           setCards([newCard, ...cards]);
+          setActiveTab(category); // Automatically switch active tab so user sees it!
           setProcessingStep(null);
-          showToast('Selected image parsed into Action Card!');
+          showToast(`Added to ${category} tab!`);
         }, 800);
       }, 700);
     }, 600);
@@ -362,6 +366,7 @@ END:VCALENDAR`;
     };
 
     setCards([newReminderCard, ...cards]);
+    setActiveTab('EVENT');
     setShowManualModal(false);
     setManualTitle('');
     setManualDate('');
@@ -371,9 +376,8 @@ END:VCALENDAR`;
     showToast('Event Reminder Added!');
   };
 
-  // STRICT TAB FILTERING: Reminders tab ONLY shows 'EVENT' category items!
   const filteredCards = cards.filter(card => {
-    const matchesTab = card.category === activeTab; // STRICT MATCH
+    const matchesTab = card.category === activeTab;
     const searchLower = searchQuery.toLowerCase();
     const titleToSearch = card.event?.title || card.grocery?.dishName || card.expense?.vendor || card.bookmark?.headline || '';
     const matchesSearch = titleToSearch.toLowerCase().includes(searchLower);
@@ -382,7 +386,6 @@ END:VCALENDAR`;
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} flex justify-center py-6 px-3 transition-colors duration-200`}>
-      {/* Toast Notification */}
       {copiedToast && (
         <div className="fixed top-5 z-50 bg-indigo-600 text-white px-5 py-2.5 rounded-full shadow-xl flex items-center gap-2 animate-bounce">
           <CheckCircle2 className="w-5 h-5" />
@@ -390,10 +393,7 @@ END:VCALENDAR`;
         </div>
       )}
 
-      {/* Android Mobile Phone Shell */}
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[840px] relative">
-        
-        {/* Status Bar */}
         <div className="bg-slate-950 px-6 py-2.5 flex justify-between items-center text-xs text-slate-400 font-medium">
           <span>9:41 AM</span>
           <div className="w-20 h-4 bg-slate-900 rounded-full mx-auto border border-slate-800"></div>
@@ -405,7 +405,6 @@ END:VCALENDAR`;
           </div>
         </div>
 
-        {/* Top App Bar */}
         <div className="bg-slate-900/90 backdrop-blur-md px-5 py-3 border-b border-slate-800 flex justify-between items-center">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 bg-indigo-600/20 border border-indigo-500/30 rounded-xl flex items-center justify-center text-indigo-400">
@@ -413,7 +412,7 @@ END:VCALENDAR`;
             </div>
             <div>
               <h1 className="font-bold text-base tracking-tight text-white">SnapAction</h1>
-              <p className="text-[10px] text-indigo-400 font-medium uppercase tracking-wider">Vision AI Assistant</p>
+              <p className="text-[10px] text-indigo-400 font-medium uppercase tracking-wider">Android AI App</p>
             </div>
           </div>
 
@@ -425,10 +424,7 @@ END:VCALENDAR`;
           </button>
         </div>
 
-        {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          
-          {/* Upload Hub / Dropzone */}
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -490,7 +486,6 @@ END:VCALENDAR`;
             )}
           </div>
 
-          {/* Search Box & Add Event Header Row */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
@@ -503,7 +498,6 @@ END:VCALENDAR`;
               />
             </div>
 
-            {/* Prominent "Add Event" Button inside Reminders Tab */}
             {activeTab === 'EVENT' && (
               <button
                 type="button"
@@ -516,7 +510,6 @@ END:VCALENDAR`;
             )}
           </div>
 
-          {/* Action Feeds */}
           {filteredCards.length === 0 ? (
             <div className="py-12 text-center text-slate-500 space-y-3">
               <Calendar className="w-10 h-10 mx-auto text-slate-600 stroke-1" />
@@ -534,8 +527,6 @@ END:VCALENDAR`;
             <div className="space-y-3">
               {filteredCards.map(card => (
                 <div key={card.id} className="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-3.5 space-y-3 shadow-lg hover:border-slate-600 transition-colors">
-                  
-                  {/* Header Badge */}
                   <div className="flex justify-between items-center">
                     <span className={`text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-md border ${
                       card.category === 'EVENT' ? 'bg-indigo-950/60 text-indigo-300 border-indigo-800/50' :
@@ -564,7 +555,6 @@ END:VCALENDAR`;
                     </div>
                   </div>
 
-                  {/* Content Body */}
                   <div className="flex gap-3">
                     <img 
                       src={card.imageUri} 
@@ -574,7 +564,6 @@ END:VCALENDAR`;
                     />
 
                     <div className="flex-1 space-y-1.5 text-xs">
-                      {/* Event / Reminder Content */}
                       {card.category === 'EVENT' && card.event && (
                         <div className="space-y-1">
                           <h4 className="font-bold text-slate-100 text-sm">{card.event.title}</h4>
@@ -599,7 +588,6 @@ END:VCALENDAR`;
                         </div>
                       )}
 
-                      {/* Grocery & Dish Content */}
                       {card.category === 'GROCERY' && card.grocery && (
                         <div className="space-y-1">
                           <h4 className="font-bold text-slate-100 text-sm">{card.grocery.dishName}</h4>
@@ -621,7 +609,6 @@ END:VCALENDAR`;
                         </div>
                       )}
 
-                      {/* Expense Content */}
                       {card.category === 'EXPENSE' && card.expense && (
                         <div className="space-y-1">
                           <h4 className="font-bold text-slate-100 text-sm">{card.expense.vendor}</h4>
@@ -640,7 +627,6 @@ END:VCALENDAR`;
                         </div>
                       )}
 
-                      {/* Bookmark & Notes Content */}
                       {card.category === 'BOOKMARK' && card.bookmark && (
                         <div className="space-y-1">
                           <h4 className="font-bold text-slate-100 text-sm">{card.bookmark.headline}</h4>
@@ -662,7 +648,6 @@ END:VCALENDAR`;
           )}
         </div>
 
-        {/* Bottom Navigation Tabs */}
         <div className="bg-slate-950 border-t border-slate-800 px-3 py-2.5 flex justify-around items-center text-[10px]">
           <button onClick={() => setActiveTab('EVENT')} className={`flex flex-col items-center gap-1 ${activeTab === 'EVENT' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
             <Calendar className="w-4 h-4" />
@@ -684,7 +669,6 @@ END:VCALENDAR`;
 
       </div>
 
-      {/* Manual Add Event Modal */}
       {showManualModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center p-3">
           <form onSubmit={handleAddManualEvent} className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-5 space-y-3.5 shadow-2xl">
@@ -764,72 +748,46 @@ END:VCALENDAR`;
         </div>
       )}
 
-      {/* Edit Modal */}
       {editingCard && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-3">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-5 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-100">Edit & Verify Action Item</h3>
+              <h3 className="font-bold text-base text-slate-100">Edit & Assign Category Tab</h3>
               <button onClick={() => setEditingCard(null)} className="text-slate-400 hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {editingCard.category === 'EVENT' && editingCard.event && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-400 font-medium">Event Title</label>
-                  <input 
-                    type="text" 
-                    value={editingCard.event.title} 
-                    onChange={e => setEditingCard({ ...editingCard, event: { ...editingCard.event!, title: e.target.value } })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" 
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-400 font-medium">Location</label>
-                  <input 
-                    type="text" 
-                    value={editingCard.event.location} 
-                    onChange={e => setEditingCard({ ...editingCard, event: { ...editingCard.event!, location: e.target.value } })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" 
-                  />
-                </div>
+            <div className="space-y-1.5">
+              <label className="text-xs text-indigo-400 font-semibold">Assigned Tab</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(['EVENT', 'GROCERY', 'EXPENSE', 'BOOKMARK'] as const).map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setEditingCard({ ...editingCard, category: cat })}
+                    className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all ${
+                      editingCard.category === cat 
+                        ? 'bg-indigo-600 text-white border-indigo-500' 
+                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    {cat === 'EVENT' ? 'Reminders' : cat === 'GROCERY' ? 'Groceries' : cat === 'EXPENSE' ? 'Expenses' : 'Bookmarks'}
+                  </button>
+                ))}
               </div>
-            )}
-
-            {editingCard.category === 'EXPENSE' && editingCard.expense && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-400 font-medium">Merchant / Vendor</label>
-                  <input 
-                    type="text" 
-                    value={editingCard.expense.vendor} 
-                    onChange={e => setEditingCard({ ...editingCard, expense: { ...editingCard.expense!, vendor: e.target.value } })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" 
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-400 font-medium">Total Amount ($)</label>
-                  <input 
-                    type="number" 
-                    value={editingCard.expense.totalAmount} 
-                    onChange={e => setEditingCard({ ...editingCard, expense: { ...editingCard.expense!, totalAmount: parseFloat(e.target.value) || 0 } })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200" 
-                  />
-                </div>
-              </div>
-            )}
+            </div>
 
             <button 
               onClick={() => {
                 setCards(cards.map(c => c.id === editingCard.id ? editingCard : c));
+                setActiveTab(editingCard.category);
                 setEditingCard(null);
-                showToast('Action card saved!');
+                showToast('Action card updated!');
               }}
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs flex justify-center items-center gap-2"
             >
-              <Check className="w-4 h-4" /> Save Changes
+              <Check className="w-4 h-4" /> Save Changes & Switch Tab
             </button>
           </div>
         </div>
