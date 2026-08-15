@@ -6,68 +6,75 @@ object DemoData {
     val initialCards = listOf(
         SnapActionCard(
             id = "demo-1",
-            category = IntentCategory.EVENT,
-            confidenceScore = 0.98,
-            imageUri = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=60",
+            category = ClassificationCategory.BILL_RECEIPT,
+            confidenceScore = 0.99,
+            imageUri = "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=60",
+            summaryTitle = "Metro Electric Utility Invoice",
             timestamp = System.currentTimeMillis() - 3600000 * 2,
-            event = EventDetails(
-                title = "Neon Summer Music Festival 2026",
-                startDate = "2026-08-24",
-                startTime = "18:00",
-                endDate = "2026-08-24",
-                endTime = "23:30",
-                location = "Sunset Amphitheater, Austin TX",
-                details = "Live electronic music festival featuring international DJs. Gates open at 5:00 PM."
+            expenseDetails = ExpenseDetails(
+                isExpense = true,
+                merchant = "Metro Electric Utility Corp",
+                totalAmount = 84.50,
+                currency = "USD",
+                date = "2026-08-15"
+            ),
+            extractedItems = listOf(
+                ExtractedItem(name = "Residential Electric Usage kWh", quantity = "420 kWh", estimatedPrice = 84.50)
             )
         ),
         SnapActionCard(
             id = "demo-2",
-            category = IntentCategory.GROCERY,
-            confidenceScore = 0.95,
+            category = ClassificationCategory.FOOD_DISH,
+            confidenceScore = 0.96,
             imageUri = "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=800&auto=format&fit=crop&q=60",
+            summaryTitle = "Creamy Tuscan Garlic Chicken",
             timestamp = System.currentTimeMillis() - 3600000 * 5,
-            grocery = GroceryDetails(
+            recipeDetails = RecipeDetails(
                 dishName = "Creamy Tuscan Garlic Chicken",
-                items = listOf(
-                    GroceryItem("g1", "Boneless Chicken Breasts", "2 large lbs", isChecked = true),
-                    GroceryItem("g2", "Heavy Whip Cream", "1 cup", isChecked = false),
-                    GroceryItem("g3", "Sun-dried Tomatoes in oil", "1/2 cup chopped", isChecked = false),
-                    GroceryItem("g4", "Fresh Baby Spinach", "2 cups", isChecked = true),
-                    GroceryItem("g5", "Garlic Cloves", "4 minced", isChecked = false),
-                    GroceryItem("g6", "Grated Parmesan Cheese", "1/2 cup", isChecked = false)
-                )
+                estimatedIngredientsRequired = listOf(
+                    "Boneless Chicken Breasts",
+                    "Heavy Whip Cream",
+                    "Sun-dried Tomatoes in oil",
+                    "Fresh Baby Spinach",
+                    "Garlic Cloves",
+                    "Grated Parmesan Cheese"
+                ),
+                notes = "Inferred recipe ingredients from plate photo."
             )
         ),
         SnapActionCard(
             id = "demo-3",
-            category = IntentCategory.EXPENSE,
-            confidenceScore = 0.99,
-            imageUri = "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=60",
+            category = ClassificationCategory.GROCERY_LIST,
+            confidenceScore = 0.97,
+            imageUri = "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&auto=format&fit=crop&q=60",
+            summaryTitle = "Pantry & Produce Restock Checklist",
             timestamp = System.currentTimeMillis() - 3600000 * 12,
-            expense = ExpenseDetails(
-                vendor = "Metro Electric Utility Corp",
-                totalAmount = 84.50,
-                currency = "USD",
-                dueDate = "2026-08-15",
-                category = "Utilities",
-                isPaid = false
+            extractedItems = listOf(
+                ExtractedItem(name = "Organic Whole Milk 1 Gal", quantity = "1 gal", estimatedPrice = 4.29),
+                ExtractedItem(name = "Fresh Hass Avocados 4-pack", quantity = "1 bag", estimatedPrice = 5.99),
+                ExtractedItem(name = "Greek Yogurt Vanilla 32oz", quantity = "1 tub", estimatedPrice = 5.49)
             )
         ),
         SnapActionCard(
             id = "demo-4",
-            category = IntentCategory.BOOKMARK,
-            confidenceScore = 0.93,
+            category = ClassificationCategory.PACKAGED_ITEM,
+            confidenceScore = 0.94,
+            imageUri = "https://images.unsplash.com/photo-1527661591475-527312dd65f5?w=800&auto=format&fit=crop&q=60",
+            summaryTitle = "Cold-Pressed Sparkling Sparkling Water",
+            timestamp = System.currentTimeMillis() - 3600000 * 18,
+            extractedItems = listOf(
+                ExtractedItem(name = "Sparkling Water Grapefruit 12-pack", quantity = "1 case", estimatedPrice = 6.99)
+            )
+        ),
+        SnapActionCard(
+            id = "demo-5",
+            category = ClassificationCategory.OTHER,
+            confidenceScore = 0.92,
             imageUri = "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop&q=60",
+            summaryTitle = "10-Minute Morning Spine Mobility Routine",
             timestamp = System.currentTimeMillis() - 3600000 * 24,
-            bookmark = BookmarkDetails(
-                headline = "10-Minute Morning Spine Mobility Routine",
-                summary = "Quick full-body dynamic routine designed to unlock tight hip flexors and relieve lower back tension after sleeping.",
-                keyTakeaways = listOf(
-                    "90/90 Hip Switches - 10 smooth reps per side",
-                    "Cat-Cow with Thread The Needle - 8 slow breathing cycles",
-                    "World's Greatest Stretch - 5 deep holds per leg"
-                ),
-                sourcePlatform = "Instagram"
+            recipeDetails = RecipeDetails(
+                notes = "Saved social media snippet & fitness routine note."
             )
         )
     )
