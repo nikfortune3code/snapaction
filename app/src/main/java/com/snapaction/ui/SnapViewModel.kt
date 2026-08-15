@@ -13,9 +13,9 @@ import kotlinx.coroutines.launch
 
 enum class FeedTab {
     ALL,
-    EVENTS,
     GROCERIES,
-    EXPENSES
+    EXPENSES,
+    EVENTS
 }
 
 data class UiState(
@@ -63,13 +63,21 @@ class SnapViewModel(
     }
 
     fun toggleGroceryItem(cardId: String, itemId: String) {
-        // Toggle item selection logic
+        val updatedCards = _uiState.value.cards.map { card ->
+            if (card.id == cardId && card.grocery != null) {
+                val newItems = card.grocery.items.map { item ->
+                    if (item.id == itemId) item.copy(isChecked = !item.isChecked) else item
+                }
+                card.copy(grocery = card.grocery.copy(items = newItems))
+            } else card
+        }
+        _uiState.value = _uiState.value.copy(cards = updatedCards)
     }
 
     fun toggleExpensePaid(cardId: String) {
         val updatedCards = _uiState.value.cards.map { card ->
-            if (card.id == cardId && card.expenseDetails != null) {
-                card.copy(expenseDetails = card.expenseDetails.copy(isExpense = !card.expenseDetails.isExpense))
+            if (card.id == cardId && card.expense != null) {
+                card.copy(expense = card.expense.copy(isPaid = !card.expense.isPaid))
             } else card
         }
         _uiState.value = _uiState.value.copy(cards = updatedCards)
