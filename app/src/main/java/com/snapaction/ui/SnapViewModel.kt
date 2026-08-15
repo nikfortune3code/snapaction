@@ -10,20 +10,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 enum class FeedTab {
-    ALL,
+    REMINDERS,
     GROCERIES,
     EXPENSES,
-    EVENTS
+    BOOKMARKS
 }
 
 data class UiState(
-    val selectedTab: FeedTab = FeedTab.ALL,
+    val selectedTab: FeedTab = FeedTab.REMINDERS,
     val searchQuery: String = "",
     val cards: List<SnapActionCard> = DemoData.initialCards,
     val processingState: ProcessingState? = null,
     val activeEditCard: SnapActionCard? = null,
+    val showAddEventModal: Boolean = false,
     val isDarkMode: Boolean = true
 )
 
@@ -44,6 +46,35 @@ class SnapViewModel(
 
     fun toggleDarkMode() {
         _uiState.value = _uiState.value.copy(isDarkMode = !_uiState.value.isDarkMode)
+    }
+
+    fun openAddEventModal() {
+        _uiState.value = _uiState.value.copy(showAddEventModal = true)
+    }
+
+    fun closeAddEventModal() {
+        _uiState.value = _uiState.value.copy(showAddEventModal = false)
+    }
+
+    fun addManualEvent(title: String, startDate: String, startTime: String, location: String, details: String) {
+        val newCard = SnapActionCard(
+            id = UUID.randomUUID().toString(),
+            category = IntentCategory.EVENT,
+            confidenceScore = 1.0,
+            imageUri = "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=800&auto=format&fit=crop&q=60",
+            timestamp = System.currentTimeMillis(),
+            event = EventDetails(
+                title = title,
+                startDate = startDate,
+                startTime = startTime.ifBlank { "12:00" },
+                location = location.ifBlank { "Custom Reminder" },
+                details = details.ifBlank { "Manually created reminder" }
+            )
+        )
+        _uiState.value = _uiState.value.copy(
+            cards = listOf(newCard) + _uiState.value.cards,
+            showAddEventModal = false
+        )
     }
 
     fun uploadScreenshot(imageUri: String) {
