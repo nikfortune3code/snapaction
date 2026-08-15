@@ -41,6 +41,12 @@ fun UploadHub(
         }
     }
 
+    val triggerPicker = {
+        if (processingState == null) {
+            imagePickerLauncher.launch("image/*")
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -59,10 +65,8 @@ fun UploadHub(
                     shape = RoundedCornerShape(20.dp)
                 )
                 .clip(RoundedCornerShape(20.dp))
-                .clickable {
-                    if (processingState == null) {
-                        imagePickerLauncher.launch("image/*")
-                    }
+                .clickable(enabled = processingState == null) {
+                    triggerPicker()
                 }
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -145,7 +149,7 @@ fun UploadHub(
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = {
-                        imagePickerLauncher.launch("image/*")
+                        triggerPicker()
                     },
                     shape = RoundedCornerShape(12.dp)
                 ) {
