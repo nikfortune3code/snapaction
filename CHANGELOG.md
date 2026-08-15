@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.9.0] - 2026-08-16
+
+### 🚀 Added
+- **Equal-Sized Camera Photo Capture Button**:
+  - Implemented a camera picture capture button (`Capture Image (Camera)`) placed directly **below** the `Select Screenshot` button inside the upload hub.
+  - Formatted both buttons with identical sizing (`fillMaxWidth(0.85f).height(48.dp)`) for balanced UI symmetry.
+- **Top Bar Global Search Button**:
+  - Added a global Search icon button in the Top App Bar **just beside** the Dark/Light theme toggle button.
+  - Search query filters across all tabs dynamically when active.
+- **Centered & Full-Sized "Add Event" Button**:
+  - Removed the inline body search field from the Reminders view.
+  - Centered the **"Add Event"** button in the Reminders tab and matched its size (`fillMaxWidth(0.85f).height(48.dp)`) with the `Select Screenshot` button.
+
+---
+
 ## [1.8.0] - 2026-08-16
 
 ### 🧹 Refactored
