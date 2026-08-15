@@ -8,10 +8,12 @@ import com.snapaction.data.model.*
 import com.snapaction.data.repository.AiVisionRepository
 import com.snapaction.data.repository.ProcessingState
 import com.snapaction.data.repository.SmsTransactionRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 enum class FeedTab {
@@ -28,7 +30,9 @@ data class UiState(
     val processingState: ProcessingState? = null,
     val activeEditCard: SnapActionCard? = null,
     val showAddEventModal: Boolean = false,
-    val isDarkMode: Boolean = true
+    val isDarkMode: Boolean = true,
+    val isSmsScanning: Boolean = false,
+    val smsScannedCount: Int = 0
 )
 
 class SnapViewModel(
@@ -39,15 +43,37 @@ class SnapViewModel(
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    init {
-        // Automatically detect transaction SMS messages ('spent', 'sent', 'debited', 'paid') when app opens
-        scanTransactionSmsOnLaunch()
-    }
+    /**
+     * Scans the Android native Messages app (SMS inbox) for transaction messages.
+     * Requires READ_SMS runtime permission to be already granted before calling this.
+     */
+    fun scanDeviceSmsMessages(context: Context) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isSmsScanning = true,
+                selectedTab = FeedTab.EXPENSES
+            )
 
-    private fun scanTransactionSmsOnLaunch() {
-        val detectedSmsCards = smsRepository.getInitialTransactionSms()
-        val combinedCards = detectedSmsCards + _uiState.value.cards
-        _uiState.value = _uiState.value.copy(cards = combinedCards)
+            val smsCards = withContext(Dispatchers.IO) {
+                smsRepository.readTransactionSmsFromDevice(context)
+            }
+
+            // Deduplicate: skip SMS cards whose raw SMS text already exists in current list
+            val existingRawTexts = _uiState.value.cards
+                .mapNotNull { it.expense?.rawSmsText }
+                .toSet()
+
+            val newCards = smsCards.filter { card ->
+                card.expense?.rawSmsText?.let { it !in existingRawTexts } ?: true
+            }
+
+            val combinedCards = newCards + _uiState.value.cards
+            _uiState.value = _uiState.value.copy(
+                cards = combinedCards,
+                isSmsScanning = false,
+                smsScannedCount = newCards.size
+            )
+        }
     }
 
     fun processTransactionSmsText(smsText: String) {
@@ -59,6 +85,10 @@ class SnapViewModel(
                 selectedTab = FeedTab.EXPENSES
             )
         }
+    }
+
+    fun clearSmsScannedCount() {
+        _uiState.value = _uiState.value.copy(smsScannedCount = 0)
     }
 
     fun selectTab(tab: FeedTab) {
@@ -172,7 +202,7 @@ class SnapViewModel(
             IntentCategory.BOOKMARK -> FeedTab.BOOKMARKS
         }
         _uiState.value = _uiState.value.copy(
-            cards = updatedCards, 
+            cards = updatedCards,
             activeEditCard = null,
             selectedTab = targetTab
         )
