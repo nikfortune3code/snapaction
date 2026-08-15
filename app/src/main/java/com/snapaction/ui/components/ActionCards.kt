@@ -2,9 +2,7 @@ package com.snapaction.ui.components
 
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,11 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,9 +78,9 @@ fun ActionCardItem(
             ) {
                 Image(
                     painter = rememberAsyncImagePainter(card.imageUri),
-                    contentDescription = "Original Screenshot",
+                    contentDescription = "Original Screenshot Reference",
                     modifier = Modifier
-                        .size(80.dp)
+                        .size(84.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .border(
                             width = 1.dp,
@@ -112,10 +107,10 @@ fun ActionCardItem(
 @Composable
 fun CategoryBadge(category: IntentCategory) {
     val (color, icon, label) = when (category) {
-        IntentCategory.EVENT -> Triple(EventBadgeColor, Icons.Default.CalendarToday, "EVENT / REMINDER")
-        IntentCategory.GROCERY -> Triple(GroceryBadgeColor, Icons.Default.ShoppingCart, "GROCERIES & DISHES")
-        IntentCategory.EXPENSE -> Triple(ExpenseBadgeColor, Icons.Default.Receipt, "EXPENSES")
-        IntentCategory.BOOKMARK -> Triple(BookmarkBadgeColor, Icons.Default.Bookmark, "BOOKMARKS & NOTES")
+        IntentCategory.EVENT -> Triple(EventBadgeColor, Icons.Default.CalendarToday, "REMINDER")
+        IntentCategory.GROCERY -> Triple(GroceryBadgeColor, Icons.Default.ShoppingCart, "GROCERIES")
+        IntentCategory.EXPENSE -> Triple(ExpenseBadgeColor, Icons.Default.Receipt, "EXPENSES & BILLS")
+        IntentCategory.BOOKMARK -> Triple(BookmarkBadgeColor, Icons.Default.Bookmark, "BOOKMARKS")
     }
 
     Surface(
@@ -204,16 +199,39 @@ fun ExpenseCardContent(
     onTogglePaid: (String) -> Unit
 ) {
     if (expense == null) return
+
+    // Bill Heading
     Text(text = expense.vendor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    
+    // Amount
     Text(
         text = String.format(Locale.US, "$%.2f %s", expense.totalAmount, expense.currency),
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.ExtraBold,
         color = ExpenseBadgeColor
     )
-    Text(text = "Due: ${expense.dueDate}", style = MaterialTheme.typography.bodySmall)
+    
+    // Category Tag
+    if (expense.category.isNotBlank()) {
+        Text(
+            text = "Category: ${expense.category}",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
 
-    Spacer(modifier = Modifier.height(6.dp))
+    // Due Date - Shown ONLY if applicable (e.g. Electric Bill, Gas Bill, Credit Card Bill)
+    if (!expense.dueDate.isNullOrBlank()) {
+        Text(
+            text = "🗓️ Due Date: ${expense.dueDate}",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.error
+        )
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
         Button(
             onClick = { onTogglePaid(cardId) },
@@ -223,7 +241,7 @@ fun ExpenseCardContent(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             shape = RoundedCornerShape(8.dp)
         ) {
-            Text(if (expense.isPaid) "✓ Paid" else "Mark Paid", fontSize = 11.sp)
+            Text(if (expense.isPaid) "✓ Paid" else "Mark Paid", fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
