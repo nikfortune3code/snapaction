@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { 
   Sparkles, Calendar, ShoppingCart, Receipt, Bookmark, 
   Upload, Plus, Edit2, Trash2, CheckCircle2, AlertCircle, 
-  Copy, Download, ExternalLink, Search, Moon, Sun, X, Check, Share2, Camera
+  Copy, Download, ExternalLink, Search, Moon, Sun, X, Check, Share2, Camera, BellPlus
 } from 'lucide-react';
 
 interface EventDetails {
@@ -124,7 +124,7 @@ const INITIAL_DEMO_DATA: SnapActionCard[] = [
 
 export default function App() {
   const [cards, setCards] = useState<SnapActionCard[]>(INITIAL_DEMO_DATA);
-  const [activeTab, setActiveTab] = useState<'ALL' | 'EVENT' | 'GROCERY' | 'EXPENSE' | 'BOOKMARK'>('ALL');
+  const [activeTab, setActiveTab] = useState<'EVENT' | 'GROCERY' | 'EXPENSE' | 'BOOKMARK'>('EVENT');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [processingStep, setProcessingStep] = useState<string | null>(null);
@@ -132,7 +132,7 @@ export default function App() {
   const [copiedToast, setCopiedToast] = useState<string | null>(null);
   const [showManualModal, setShowManualModal] = useState(false);
 
-  // Form states for manual reminder addition
+  // Form states for manual event reminder addition
   const [manualTitle, setManualTitle] = useState('');
   const [manualDate, setManualDate] = useState('');
   const [manualTime, setManualTime] = useState('12:00');
@@ -339,7 +339,7 @@ END:VCALENDAR`;
     showToast('Downloaded .ics Calendar file!');
   };
 
-  const handleAddManualReminder = (e: React.FormEvent) => {
+  const handleAddManualEvent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualTitle || !manualDate) {
       showToast('Please enter title and date');
@@ -356,8 +356,8 @@ END:VCALENDAR`;
         title: manualTitle,
         startDate: manualDate,
         startTime: manualTime || '12:00',
-        location: manualLocation || 'Custom Reminder',
-        details: manualDetails || 'User added manual reminder.'
+        location: manualLocation || 'Custom Event',
+        details: manualDetails || 'User created manual event reminder.'
       }
     };
 
@@ -368,11 +368,12 @@ END:VCALENDAR`;
     setManualTime('12:00');
     setManualLocation('');
     setManualDetails('');
-    showToast('Manual Reminder Added!');
+    showToast('Event Reminder Added!');
   };
 
+  // STRICT TAB FILTERING: Reminders tab ONLY shows 'EVENT' category items!
   const filteredCards = cards.filter(card => {
-    const matchesTab = activeTab === 'ALL' || card.category === activeTab;
+    const matchesTab = card.category === activeTab; // STRICT MATCH
     const searchLower = searchQuery.toLowerCase();
     const titleToSearch = card.event?.title || card.grocery?.dishName || card.expense?.vendor || card.bookmark?.headline || '';
     const matchesSearch = titleToSearch.toLowerCase().includes(searchLower);
@@ -484,167 +485,186 @@ END:VCALENDAR`;
                     <Camera className="w-3.5 h-3.5 text-indigo-400" />
                     <span>Take Photo</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowManualModal(true);
-                    }}
-                    className="bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white font-medium text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-md transition-all hover:scale-105 active:scale-95"
-                  >
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>Manual</span>
-                  </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Search Box */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search reminders, groceries, expenses, bookmarks..." 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950/60 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            />
+          {/* Search Box & Add Event Header Row */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder={`Search ${activeTab.toLowerCase()} items...`} 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-950/60 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Prominent "Add Event" Button inside Reminders Tab */}
+            {activeTab === 'EVENT' && (
+              <button
+                type="button"
+                onClick={() => setShowManualModal(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 whitespace-nowrap transition-all hover:scale-105 active:scale-95"
+              >
+                <BellPlus className="w-4 h-4" />
+                <span>Add Event</span>
+              </button>
+            )}
           </div>
 
           {/* Action Feeds */}
-          <div className="space-y-3">
-            {filteredCards.map(card => (
-              <div key={card.id} className="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-3.5 space-y-3 shadow-lg hover:border-slate-600 transition-colors">
-                
-                {/* Header Badge */}
-                <div className="flex justify-between items-center">
-                  <span className={`text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-md border ${
-                    card.category === 'EVENT' ? 'bg-indigo-950/60 text-indigo-300 border-indigo-800/50' :
-                    card.category === 'GROCERY' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/50' :
-                    card.category === 'EXPENSE' ? 'bg-rose-950/60 text-rose-300 border-rose-800/50' :
-                    'bg-amber-950/60 text-amber-300 border-amber-800/50'
-                  }`}>
-                    {card.category === 'EVENT' ? 'REMINDER / EVENT' :
-                     card.category === 'GROCERY' ? 'GROCERIES & DISHES' :
-                     card.category === 'EXPENSE' ? 'EXPENSES' : 'BOOKMARK & NOTE'}
-                  </span>
+          {filteredCards.length === 0 ? (
+            <div className="py-12 text-center text-slate-500 space-y-3">
+              <Calendar className="w-10 h-10 mx-auto text-slate-600 stroke-1" />
+              <p className="text-xs">No {activeTab.toLowerCase()} items found.</p>
+              {activeTab === 'EVENT' && (
+                <button
+                  onClick={() => setShowManualModal(true)}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs px-4 py-2 rounded-xl inline-flex items-center gap-1.5 shadow-lg"
+                >
+                  <Plus className="w-4 h-4" /> Add Event Manually
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredCards.map(card => (
+                <div key={card.id} className="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-3.5 space-y-3 shadow-lg hover:border-slate-600 transition-colors">
                   
-                  <div className="flex items-center gap-1">
-                    <button 
-                      onClick={() => setEditingCard(card)}
-                      className="text-slate-400 hover:text-slate-200 text-xs p-1 bg-slate-900/60 rounded-lg border border-slate-700"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      onClick={() => deleteCard(card.id)}
-                      className="text-rose-400 hover:text-rose-300 text-xs p-1 bg-slate-900/60 rounded-lg border border-slate-700"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  {/* Header Badge */}
+                  <div className="flex justify-between items-center">
+                    <span className={`text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-md border ${
+                      card.category === 'EVENT' ? 'bg-indigo-950/60 text-indigo-300 border-indigo-800/50' :
+                      card.category === 'GROCERY' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/50' :
+                      card.category === 'EXPENSE' ? 'bg-rose-950/60 text-rose-300 border-rose-800/50' :
+                      'bg-amber-950/60 text-amber-300 border-amber-800/50'
+                    }`}>
+                      {card.category === 'EVENT' ? 'REMINDER / EVENT' :
+                       card.category === 'GROCERY' ? 'GROCERIES & DISHES' :
+                       card.category === 'EXPENSE' ? 'EXPENSES' : 'BOOKMARK & NOTE'}
+                    </span>
+                    
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => setEditingCard(card)}
+                        className="text-slate-400 hover:text-slate-200 text-xs p-1 bg-slate-900/60 rounded-lg border border-slate-700"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button 
+                        onClick={() => deleteCard(card.id)}
+                        className="text-rose-400 hover:text-rose-300 text-xs p-1 bg-slate-900/60 rounded-lg border border-slate-700"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                {/* Content Body */}
-                <div className="flex gap-3">
-                  <img 
-                    src={card.imageUri} 
-                    alt="Reference" 
-                    className="w-18 h-18 object-cover rounded-xl border border-slate-700 flex-shrink-0 cursor-pointer"
-                    onClick={() => setEditingCard(card)}
-                  />
+                  {/* Content Body */}
+                  <div className="flex gap-3">
+                    <img 
+                      src={card.imageUri} 
+                      alt="Reference" 
+                      className="w-18 h-18 object-cover rounded-xl border border-slate-700 flex-shrink-0 cursor-pointer"
+                      onClick={() => setEditingCard(card)}
+                    />
 
-                  <div className="flex-1 space-y-1.5 text-xs">
-                    {/* Event / Reminder Content */}
-                    {card.category === 'EVENT' && card.event && (
-                      <div className="space-y-1">
-                        <h4 className="font-bold text-slate-100 text-sm">{card.event.title}</h4>
-                        <p className="text-indigo-300 text-[11px]">📅 {card.event.startDate} at {card.event.startTime}</p>
-                        {card.event.location && <p className="text-slate-400 text-[11px]">📍 {card.event.location}</p>}
-                        
-                        <div className="flex gap-2 pt-1">
-                          <button
-                            onClick={() => syncToGoogleCalendar(card.event!)}
-                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[10px] px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"
-                          >
-                            <Calendar className="w-3 h-3" /> Sync Google Cal
-                          </button>
-                          <button
-                            onClick={() => exportIcsFile(card.event!)}
-                            className="bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium text-[10px] px-2.5 py-1 rounded-lg flex items-center gap-1"
-                          >
-                            <Download className="w-3 h-3" /> Export .ics
-                          </button>
+                    <div className="flex-1 space-y-1.5 text-xs">
+                      {/* Event / Reminder Content */}
+                      {card.category === 'EVENT' && card.event && (
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-slate-100 text-sm">{card.event.title}</h4>
+                          <p className="text-indigo-300 text-[11px]">📅 {card.event.startDate} at {card.event.startTime}</p>
+                          {card.event.location && <p className="text-slate-400 text-[11px]">📍 {card.event.location}</p>}
+                          {card.event.details && <p className="text-slate-300 text-[11px] leading-snug">{card.event.details}</p>}
+                          
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => syncToGoogleCalendar(card.event!)}
+                              className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[10px] px-2.5 py-1 rounded-lg flex items-center gap-1 shadow"
+                            >
+                              <Calendar className="w-3 h-3" /> Sync Google Cal
+                            </button>
+                            <button
+                              onClick={() => exportIcsFile(card.event!)}
+                              className="bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium text-[10px] px-2.5 py-1 rounded-lg flex items-center gap-1"
+                            >
+                              <Download className="w-3 h-3" /> Export .ics
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Grocery & Dish Content */}
-                    {card.category === 'GROCERY' && card.grocery && (
-                      <div className="space-y-1">
-                        <h4 className="font-bold text-slate-100 text-sm">{card.grocery.dishName}</h4>
-                        <div className="space-y-1 mt-1">
-                          {card.grocery.items.map(item => (
-                            <label key={item.id} className="flex items-center gap-2 cursor-pointer text-[11px]">
-                              <input 
-                                type="checkbox" 
-                                checked={item.checked} 
-                                onChange={() => toggleGroceryItem(card.id, item.id)}
-                                className="rounded border-slate-700 text-indigo-600 focus:ring-0"
-                              />
-                              <span className={item.checked ? 'line-through text-slate-500' : 'text-slate-300'}>
-                                {item.name} ({item.quantity})
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Expense Content */}
-                    {card.category === 'EXPENSE' && card.expense && (
-                      <div className="space-y-1">
-                        <h4 className="font-bold text-slate-100 text-sm">{card.expense.vendor}</h4>
-                        <p className="text-rose-400 font-extrabold text-base">${card.expense.totalAmount.toFixed(2)} {card.expense.currency}</p>
-                        <p className="text-slate-400 text-[11px]">Due: {card.expense.dueDate}</p>
-                        <button
-                          onClick={() => toggleExpensePaid(card.id)}
-                          className={`mt-1 font-semibold text-[10px] px-2.5 py-1 rounded-lg border transition-colors ${
-                            card.expense.isPaid 
-                              ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800' 
-                              : 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900'
-                          }`}
-                        >
-                          {card.expense.isPaid ? '✓ Paid' : 'Mark as Paid'}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Bookmark & Notes Content */}
-                    {card.category === 'BOOKMARK' && card.bookmark && (
-                      <div className="space-y-1">
-                        <h4 className="font-bold text-slate-100 text-sm">{card.bookmark.headline}</h4>
-                        <p className="text-slate-300 text-[11px] leading-snug">{card.bookmark.summary}</p>
-                        {card.bookmark.keyTakeaways.length > 0 && (
-                          <div className="pt-1 space-y-0.5">
-                            {card.bookmark.keyTakeaways.map((point, idx) => (
-                              <p key={idx} className="text-amber-300 text-[10px]">• {point}</p>
+                      {/* Grocery & Dish Content */}
+                      {card.category === 'GROCERY' && card.grocery && (
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-slate-100 text-sm">{card.grocery.dishName}</h4>
+                          <div className="space-y-1 mt-1">
+                            {card.grocery.items.map(item => (
+                              <label key={item.id} className="flex items-center gap-2 cursor-pointer text-[11px]">
+                                <input 
+                                  type="checkbox" 
+                                  checked={item.checked} 
+                                  onChange={() => toggleGroceryItem(card.id, item.id)}
+                                  className="rounded border-slate-700 text-indigo-600 focus:ring-0"
+                                />
+                                <span className={item.checked ? 'line-through text-slate-500' : 'text-slate-300'}>
+                                  {item.name} ({item.quantity})
+                                </span>
+                              </label>
                             ))}
                           </div>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
+
+                      {/* Expense Content */}
+                      {card.category === 'EXPENSE' && card.expense && (
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-slate-100 text-sm">{card.expense.vendor}</h4>
+                          <p className="text-rose-400 font-extrabold text-base">${card.expense.totalAmount.toFixed(2)} {card.expense.currency}</p>
+                          <p className="text-slate-400 text-[11px]">Due: {card.expense.dueDate}</p>
+                          <button
+                            onClick={() => toggleExpensePaid(card.id)}
+                            className={`mt-1 font-semibold text-[10px] px-2.5 py-1 rounded-lg border transition-colors ${
+                              card.expense.isPaid 
+                                ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800' 
+                                : 'bg-rose-950/60 text-rose-300 border-rose-800 hover:bg-rose-900'
+                            }`}
+                          >
+                            {card.expense.isPaid ? '✓ Paid' : 'Mark as Paid'}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Bookmark & Notes Content */}
+                      {card.category === 'BOOKMARK' && card.bookmark && (
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-slate-100 text-sm">{card.bookmark.headline}</h4>
+                          <p className="text-slate-300 text-[11px] leading-snug">{card.bookmark.summary}</p>
+                          {card.bookmark.keyTakeaways.length > 0 && (
+                            <div className="pt-1 space-y-0.5">
+                              {card.bookmark.keyTakeaways.map((point, idx) => (
+                                <p key={idx} className="text-amber-300 text-[10px]">• {point}</p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Bottom Navigation Tabs */}
         <div className="bg-slate-950 border-t border-slate-800 px-3 py-2.5 flex justify-around items-center text-[10px]">
-          <button onClick={() => setActiveTab('ALL')} className={`flex flex-col items-center gap-1 ${activeTab === 'ALL' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
+          <button onClick={() => setActiveTab('EVENT')} className={`flex flex-col items-center gap-1 ${activeTab === 'EVENT' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
             <Calendar className="w-4 h-4" />
             <span>Reminders</span>
           </button>
@@ -664,22 +684,25 @@ END:VCALENDAR`;
 
       </div>
 
-      {/* Manual Reminder Addition Modal */}
+      {/* Manual Add Event Modal */}
       {showManualModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center p-3">
-          <form onSubmit={handleAddManualReminder} className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-5 space-y-3.5 shadow-2xl">
+          <form onSubmit={handleAddManualEvent} className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-5 space-y-3.5 shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
-              <h3 className="font-bold text-base text-slate-100">Add Manual Reminder</h3>
+              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                <BellPlus className="w-5 h-5 text-indigo-400" />
+                <span>Add Event Reminder</span>
+              </h3>
               <button type="button" onClick={() => setShowManualModal(false)} className="text-slate-400 hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-slate-400 font-medium">Title *</label>
+              <label className="text-xs text-slate-400 font-medium">Event Title *</label>
               <input 
                 type="text" 
-                placeholder="e.g., Team Sync Meeting" 
+                placeholder="e.g., Tech Conference 2026" 
                 value={manualTitle} 
                 onChange={e => setManualTitle(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500" 
@@ -713,7 +736,7 @@ END:VCALENDAR`;
               <label className="text-xs text-slate-400 font-medium">Location</label>
               <input 
                 type="text" 
-                placeholder="e.g., Conference Room A or Zoom" 
+                placeholder="e.g., Grand Ballroom or Zoom Link" 
                 value={manualLocation} 
                 onChange={e => setManualLocation(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500" 
@@ -721,9 +744,9 @@ END:VCALENDAR`;
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-slate-400 font-medium">Details</label>
+              <label className="text-xs text-slate-400 font-medium">Event Description & Notes</label>
               <textarea 
-                placeholder="Notes or agenda details..." 
+                placeholder="Details, ticket numbers, or agenda items..." 
                 value={manualDetails} 
                 onChange={e => setManualDetails(e.target.value)}
                 rows={2}
@@ -735,7 +758,7 @@ END:VCALENDAR`;
               type="submit"
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs flex justify-center items-center gap-2 shadow-lg shadow-indigo-600/20"
             >
-              <Check className="w-4 h-4" /> Add Reminder
+              <Check className="w-4 h-4" /> Add Event Reminder
             </button>
           </form>
         </div>
