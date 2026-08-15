@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.6.0] - 2026-08-16
+
+### 🐛 Fixed
+- **Actual Image Byte Transmission to Gemini Vision Server**:
+  - Identified and fixed the root cause where `AiVisionRepository.kt` was previously writing dummy zero bytes instead of reading actual receipt image pixels.
+  - Implemented `getBytesFromUri(context, imageUri)` using Android `ContentResolver` and file byte streams.
+  - Transmits real receipt image bytes to `http://10.0.2.2:3001/api/analyze-image` so Gemini 2.5 Flash Vision AI extracts the exact printed shop name and bill amount in **INR (`₹`)**.
+
+---
+
 ## [2.5.0] - 2026-08-16
 
 ### 🐛 Fixed
