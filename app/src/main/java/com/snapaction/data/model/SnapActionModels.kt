@@ -51,7 +51,7 @@ data class GroceryDetails(
 data class ExpenseDetails(
     val vendor: String, // Heading: e.g. "Paid to Lucky Traders"
     val totalAmount: Double,
-    val currency: String = "USD",
+    val currency: String = "INR",
     val dueDate: String? = null, // Optional: Set only if applicable (e.g. Electric, Gas, Credit Card bills)
     val category: String = "UPI Payment",
     val isPaid: Boolean = false,
