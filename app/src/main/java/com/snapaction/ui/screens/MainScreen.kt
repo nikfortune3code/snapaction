@@ -129,9 +129,10 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            val context = androidx.compose.ui.platform.LocalContext.current
             UploadHub(
                 processingState = uiState.processingState,
-                onPickImage = { uri -> viewModel.uploadScreenshot(uri) }
+                onPickImage = { uri -> viewModel.uploadScreenshot(uri, context) }
             )
 
             // Centered "Add Event" Button in Reminders Tab
