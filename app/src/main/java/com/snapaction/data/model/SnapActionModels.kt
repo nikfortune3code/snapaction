@@ -49,8 +49,8 @@ data class ExpenseDetails(
     val vendor: String,
     val totalAmount: Double,
     val currency: String = "USD",
-    val dueDate: String = "",
-    val category: String = "General",
+    val dueDate: String? = null, // Optional: Set only if applicable (e.g. Electric, Gas, Credit Card bills)
+    val category: String = "Utilities & Shopping",
     val isPaid: Boolean = false
 )
 
