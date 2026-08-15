@@ -23,7 +23,7 @@ class SmsTransactionRepository {
         // Extract Amount: e.g. Rs 250.00, INR 500, $45.00, Rs.250, 250.00
         val amountRegex = Regex("""(?:rs\.?|inr|\$)\s*([\d,]+\.?\d*)""", RegexOption.IGNORE_CASE)
         val amountMatch = amountRegex.find(smsBody)
-        val totalAmount = amountMatch?.groupValues?.get(1)?.replace(",", "")?.toDoubleOrNull() ?: 250.0
+        val totalAmount = amountMatch?.groupValues?.get(1)?.replace(",", "")?.toDoubleOrNull() ?: 0.0
 
         // Determine currency symbol/code
         val currency = when {
@@ -38,10 +38,10 @@ class SmsTransactionRepository {
         var payeeName = payeeMatch?.groupValues?.get(1)?.trim() ?: ""
 
         if (payeeName.isBlank() || payeeName.length < 2) {
-            payeeName = "Lucky Traders"
+            payeeName = "Merchant / Recipient"
         }
 
-        // Clean heading: "Paid to Lucky Traders"
+        // Clean heading: "Paid to [Recipient]"
         val heading = when {
             lower.contains("paid") -> if (payeeName.startsWith("to ", ignoreCase = true)) "Paid $payeeName" else "Paid to $payeeName"
             lower.contains("sent") -> if (payeeName.startsWith("to ", ignoreCase = true)) "Sent $payeeName" else "Sent to $payeeName"
@@ -77,15 +77,9 @@ class SmsTransactionRepository {
     }
 
     /**
-     * Initial startup transaction SMS scan when the user opens the application.
+     * Startup transaction SMS scan. Returns empty list so no dummy data is pre-populated.
      */
     fun getInitialTransactionSms(): List<SnapActionCard> {
-        val sampleSmsList = listOf(
-            "Sent Rs 250.00 to Lucky Traders on 16-08-2026 via UPI. Ref 62849102. Avail Bal Rs 14,250.00.",
-            "Rs 850.00 debited from A/C xx4920 for payment to Swiggy. Ref 928371.",
-            "You spent $45.00 at Starbucks Coffee on your credit card ending 4012."
-        )
-
-        return sampleSmsList.mapNotNull { parseTransactionSms(it) }
+        return emptyList()
     }
 }
