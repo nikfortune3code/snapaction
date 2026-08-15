@@ -1,12 +1,14 @@
 package com.snapaction.data.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-enum class IntentCategory {
-    EVENT,
-    GROCERY,
-    EXPENSE,
-    BOOKMARK
+enum class ClassificationCategory {
+    BILL_RECEIPT,
+    GROCERY_LIST,
+    FOOD_DISH,
+    PACKAGED_ITEM,
+    OTHER
 }
 
 enum class ProcessingStep {
@@ -19,57 +21,47 @@ enum class ProcessingStep {
 }
 
 @Serializable
-data class EventDetails(
-    val title: String,
-    val startDate: String,
-    val startTime: String,
-    val endDate: String = "",
-    val endTime: String = "",
-    val location: String = "",
-    val details: String = ""
-)
-
-@Serializable
-data class GroceryItem(
-    val id: String,
-    val name: String,
-    val quantity: String = "",
-    val isChecked: Boolean = false
-)
-
-@Serializable
-data class GroceryDetails(
-    val dishName: String,
-    val items: List<GroceryItem>
-)
-
-@Serializable
 data class ExpenseDetails(
-    val vendor: String,
-    val totalAmount: Double,
-    val currency: String = "USD",
-    val dueDate: String,
-    val category: String = "Utilities",
-    val isPaid: Boolean = false
+    @SerialName("is_expense") val isExpense: Boolean = false,
+    val merchant: String? = null,
+    @SerialName("total_amount") val totalAmount: Double? = null,
+    val currency: String? = null,
+    val date: String? = null
 )
 
 @Serializable
-data class BookmarkDetails(
-    val headline: String,
-    val summary: String,
-    val keyTakeaways: List<String>,
-    val sourcePlatform: String = "Instagram"
+data class ExtractedItem(
+    val name: String,
+    val quantity: String? = null,
+    @SerialName("estimated_price") val estimatedPrice: Double? = null
+)
+
+@Serializable
+data class RecipeDetails(
+    @SerialName("dish_name") val dishName: String? = null,
+    @SerialName("estimated_ingredients_required") val estimatedIngredientsRequired: List<String> = emptyList(),
+    val notes: String? = null
+)
+
+@Serializable
+data class SnapActionAnalysisResponse(
+    @SerialName("detected_category") val detectedCategory: ClassificationCategory,
+    @SerialName("confidence_score") val confidenceScore: Double,
+    @SerialName("summary_title") val summaryTitle: String,
+    @SerialName("expense_details") val expenseDetails: ExpenseDetails? = null,
+    @SerialName("extracted_items") val extractedItems: List<ExtractedItem> = emptyList(),
+    @SerialName("recipe_details") val recipeDetails: RecipeDetails? = null
 )
 
 @Serializable
 data class SnapActionCard(
     val id: String,
-    val category: IntentCategory,
+    val category: ClassificationCategory,
     val confidenceScore: Double = 0.95,
     val imageUri: String,
+    val summaryTitle: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val event: EventDetails? = null,
-    val grocery: GroceryDetails? = null,
-    val expense: ExpenseDetails? = null,
-    val bookmark: BookmarkDetails? = null
+    val expenseDetails: ExpenseDetails? = null,
+    val extractedItems: List<ExtractedItem> = emptyList(),
+    val recipeDetails: RecipeDetails? = null
 )
