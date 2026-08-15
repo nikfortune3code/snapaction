@@ -29,6 +29,7 @@ fun MainScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var isSearchExpanded by remember { mutableStateOf(false) }
+    var showSmsInputDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -126,7 +127,7 @@ fun MainScreen(
                 onPickImage = { uri -> viewModel.uploadScreenshot(uri) }
             )
 
-            // Centered "Add Event" Button in Reminders Tab (matching size of Select Screenshot button)
+            // Centered "Add Event" Button in Reminders Tab
             if (uiState.selectedTab == FeedTab.REMINDERS) {
                 Box(
                     modifier = Modifier
@@ -147,6 +148,26 @@ fun MainScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
+            } else if (uiState.selectedTab == FeedTab.EXPENSES) {
+                // SMS Transaction Parsing Shortcut in Expenses Tab
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    OutlinedButton(
+                        onClick = { showSmsInputDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .height(42.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Process SMS Transaction", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
 
             // Filtering Logic per Tab (Global Search searches all fields when active)
@@ -223,6 +244,62 @@ fun MainScreen(
             }
         )
     }
+
+    // SMS Transaction Dialog
+    if (showSmsInputDialog) {
+        SmsTransactionDialog(
+            onDismiss = { showSmsInputDialog = false },
+            onParseSms = { smsText ->
+                viewModel.processTransactionSmsText(smsText)
+                showSmsInputDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun SmsTransactionDialog(
+    onDismiss: () -> Unit,
+    onParseSms: (String) -> Unit
+) {
+    var smsText by remember { mutableStateOf("Sent Rs 250.00 to Lucky Traders via UPI") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Parse Bank SMS Transaction", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Detects keywords: 'spent', 'sent', 'debited', 'paid'",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = smsText,
+                    onValueChange = { smsText = it },
+                    label = { Text("SMS Message Body") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (smsText.isNotBlank()) onParseSms(smsText)
+                },
+                enabled = smsText.isNotBlank()
+            ) {
+                Text("Process SMS")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
