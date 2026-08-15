@@ -1,8 +1,11 @@
 package com.snapaction.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,16 +14,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.snapaction.data.model.IntentCategory
+import com.snapaction.data.model.SnapActionCard
 import com.snapaction.ui.FeedTab
 import com.snapaction.ui.SnapViewModel
 import com.snapaction.ui.components.ActionCardItem
 import com.snapaction.ui.components.EditActionSheet
 import com.snapaction.ui.components.UploadHub
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +36,7 @@ fun MainScreen(
     val uiState by viewModel.uiState.collectAsState()
     var isSearchExpanded by remember { mutableStateOf(false) }
     var showSmsInputDialog by remember { mutableStateOf(false) }
+    var selectedMonthFilter by remember { mutableStateOf("All Months") }
 
     Scaffold(
         topBar = {
@@ -68,7 +75,7 @@ fun MainScreen(
                     }
                 },
                 actions = {
-                    // Global Search Button just beside Dark/Light Theme Button
+                    // Global Search Button
                     IconButton(onClick = { 
                         isSearchExpanded = !isSearchExpanded
                         if (!isSearchExpanded) viewModel.updateSearchQuery("")
@@ -149,7 +156,7 @@ fun MainScreen(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
             } else if (uiState.selectedTab == FeedTab.EXPENSES) {
-                // SMS Transaction Parsing Shortcut in Expenses Tab
+                // SMS Transaction Parsing Shortcut & Monthly Analysis Header in Expenses Tab
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -188,7 +195,150 @@ fun MainScreen(
                 }
             }
 
-            if (filteredCards.isEmpty()) {
+            // EXPENSES TAB: Monthly Categorization & Spend Analysis
+            if (uiState.selectedTab == FeedTab.EXPENSES && filteredCards.isNotEmpty()) {
+                val expenseCards = filteredCards.filter { it.expense != null }
+                val availableMonths = remember(expenseCards) {
+                    listOf("All Months") + expenseCards.map { it.getMonthYearString() }.distinct()
+                }
+
+                // Selected Month Filtered List
+                val monthFilteredExpenses = remember(expenseCards, selectedMonthFilter) {
+                    if (selectedMonthFilter == "All Months") expenseCards else expenseCards.filter { it.getMonthYearString() == selectedMonthFilter }
+                }
+
+                val totalSpend = monthFilteredExpenses.sumOf { it.expense?.totalAmount ?: 0.0 }
+                val paidSpend = monthFilteredExpenses.filter { it.expense?.isPaid == true }.sumOf { it.expense?.totalAmount ?: 0.0 }
+                val pendingSpend = monthFilteredExpenses.filter { it.expense?.isPaid == false }.sumOf { it.expense?.totalAmount ?: 0.0 }
+
+                // Monthly Summary Banner
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "📊 Monthly Spend Analysis",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "${monthFilteredExpenses.size} Expenses",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Total Spend", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    text = String.format(Locale.US, "$%.2f", totalSpend),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Column {
+                                Text("Paid Amount", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    text = String.format(Locale.US, "$%.2f", paidSpend),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                            Column {
+                                Text("Pending Bills", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    text = String.format(Locale.US, "$%.2f", pendingSpend),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Month Selector Filter Chips
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(availableMonths) { month ->
+                        FilterChip(
+                            selected = selectedMonthFilter == month,
+                            onClick = { selectedMonthFilter = month },
+                            label = { Text(month, fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                            leadingIcon = if (selectedMonthFilter == month) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp)) }
+                            } else null,
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Group Expenses by Month
+                val groupedByMonth = monthFilteredExpenses.groupBy { it.getMonthYearString() }
+
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    groupedByMonth.forEach { (monthName, cardsInMonth) ->
+                        val monthTotal = cardsInMonth.sumOf { it.expense?.totalAmount ?: 0.0 }
+                        item {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "📅 $monthName",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = String.format(Locale.US, "Total: $%.2f", monthTotal),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                        items(cardsInMonth, key = { it.id }) { card ->
+                            ActionCardItem(
+                                card = card,
+                                onToggleGrocery = { cardId, itemId -> viewModel.toggleGroceryItem(cardId, itemId) },
+                                onTogglePaid = { cardId -> viewModel.toggleExpensePaid(cardId) },
+                                onEditCard = { editCard -> viewModel.openEditCard(editCard) },
+                                onDeleteCard = { delId -> viewModel.deleteCard(delId) }
+                            )
+                        }
+                    }
+                }
+            } else if (filteredCards.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
