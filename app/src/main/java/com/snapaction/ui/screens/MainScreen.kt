@@ -1,5 +1,6 @@
 package com.snapaction.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,26 +28,56 @@ fun MainScreen(
     viewModel: SnapViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var isSearchExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "SnapAction Logo",
-                            tint = MaterialTheme.colorScheme.primary
+                    if (isSearchExpanded) {
+                        OutlinedTextField(
+                            value = uiState.searchQuery,
+                            onValueChange = { viewModel.updateSearchQuery(it) },
+                            placeholder = { Text("Search all tabs...", fontSize = 14.sp) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                if (uiState.searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear Search")
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "SnapAction",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "SnapAction Logo",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "SnapAction",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
                     }
                 },
                 actions = {
+                    // Global Search Button just beside Dark/Light Theme Button
+                    IconButton(onClick = { 
+                        isSearchExpanded = !isSearchExpanded
+                        if (!isSearchExpanded) viewModel.updateSearchQuery("")
+                    }) {
+                        Icon(
+                            imageVector = if (isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
+                            contentDescription = "Search All Tabs",
+                            tint = if (isSearchExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     IconButton(onClick = { viewModel.toggleDarkMode() }) {
                         Icon(
                             imageVector = if (uiState.isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
@@ -95,51 +126,42 @@ fun MainScreen(
                 onPickImage = { uri -> viewModel.uploadScreenshot(uri) }
             )
 
-            // Search & Action Header Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = { viewModel.updateSearchQuery(it) },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Search extracted cards...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium
-                )
-
-                if (uiState.selectedTab == FeedTab.REMINDERS) {
-                    Spacer(modifier = Modifier.width(8.dp))
+            // Centered "Add Event" Button in Reminders Tab (matching size of Select Screenshot button)
+            if (uiState.selectedTab == FeedTab.REMINDERS) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Button(
                         onClick = { viewModel.openAddEventModal() },
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.AddAlert, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Event", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.AddAlert, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add Event", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+                Spacer(modifier = Modifier.height(4.dp))
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // STRICT Filtering Logic per Tab
+            // Filtering Logic per Tab (Global Search searches all fields when active)
             val filteredCards = remember(uiState.cards, uiState.selectedTab, uiState.searchQuery) {
                 uiState.cards.filter { card ->
                     val matchesTab = when (uiState.selectedTab) {
-                        FeedTab.REMINDERS -> card.category == IntentCategory.EVENT // STRICT: ONLY EVENTS
+                        FeedTab.REMINDERS -> card.category == IntentCategory.EVENT
                         FeedTab.GROCERIES -> card.category == IntentCategory.GROCERY
                         FeedTab.EXPENSES -> card.category == IntentCategory.EXPENSE
                         FeedTab.BOOKMARKS -> card.category == IntentCategory.BOOKMARK
                     }
-                    val matchesSearch = if (uiState.searchQuery.isEmpty()) true else {
+                    val matchesSearch = if (uiState.searchQuery.isBlank()) true else {
                         val title = card.event?.title ?: card.grocery?.dishName ?: card.expense?.vendor ?: card.bookmark?.headline ?: ""
-                        title.lowercase().contains(uiState.searchQuery.lowercase())
+                        val details = card.event?.details ?: card.expense?.category ?: card.bookmark?.summary ?: ""
+                        title.contains(uiState.searchQuery, ignoreCase = true) || details.contains(uiState.searchQuery, ignoreCase = true)
                     }
                     matchesTab && matchesSearch
                 }
@@ -165,14 +187,6 @@ fun MainScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (uiState.selectedTab == FeedTab.REMINDERS) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(onClick = { viewModel.openAddEventModal() }) {
-                                Icon(Icons.Default.Add, contentDescription = null)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Add Event Manually")
-                            }
-                        }
                     }
                 }
             } else {
