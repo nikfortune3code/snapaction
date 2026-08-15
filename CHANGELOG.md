@@ -6,22 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.3.0] - 2026-08-15
+
+### 🚀 Added
+- **Navigation Restructuring**:
+  - **`Reminders` Tab**: Reverted 'All Feeds' to Reminders feed with start/end dates, location, event details, Google Calendar sync, `.ics` file downloads, and manual reminder entry modal.
+  - **`Expenses` Tab**: Renamed 'Bills' tab to Expenses, featuring merchant tracking, total amounts, due dates, and interactive paid/unpaid toggles.
+  - **`Groceries` Tab**: Merged food dish recipe ingredient checklists directly into the Groceries tab alongside standard pantry items.
+  - **`Bookmarks` Tab**: Replaced 'Dishes' tab with Bookmarks to store headlines, summaries, and key takeaways from saved screenshot notes.
+- **Node.js / Express Backend Service**:
+  - Created Express server (`server/index.js`) listening on port 3001 with endpoint `POST /api/analyze-image`.
+  - Configured `multer` memory storage with 5MB file size limits and MIME format validation (`image/jpeg`, `image/png`, `image/webp`).
+  - Integrated `@google/genai` with `responseSchema` / structured output mode to guarantee valid JSON responses.
+  - Implemented robust error handling middleware and JSON fallback parsing.
+
+---
+
 ## [1.2.0] - 2026-08-15
 
 ### 🚀 Added
-- **5-Category LLM Intent Classification**: Standardized image classification across 5 strict categories:
-  - `BILL_RECEIPT`: Scanned invoices, store/restaurant receipts, digital payment screenshots.
-  - `GROCERY_LIST`: Written grocery lists, pantry snapshots, retail grocery items.
-  - `FOOD_DISH`: Cooked meals, plate photos, or food dishes (with recipe/ingredient inference).
-  - `PACKAGED_ITEM`: Packaged food, beverage, or household products with labels.
-  - `OTHER`: General text notes, social media snippets, and bookmarks.
-- **Strict JSON Schema Enforcement**: Updated the Gemini Vision LLM system prompt and parser to strictly require a single valid JSON object containing:
-  - `detected_category`
-  - `confidence_score`
-  - `summary_title`
-  - `expense_details` (`is_expense`, `merchant`, `total_amount`, `currency`, `date`)
-  - `extracted_items` (`name`, `quantity`, `estimated_price`)
-  - `recipe_details` (`dish_name`, `estimated_ingredients_required`, `notes`)
+- **5-Category LLM Intent Classification**: Standardized image classification across 5 strict categories (`BILL_RECEIPT`, `GROCERY_LIST`, `FOOD_DISH`, `PACKAGED_ITEM`, `OTHER`).
+- **Strict JSON Schema Enforcement**: Updated Gemini Vision LLM system prompt and parser to strictly require structured output.
 - **Cross-Platform Model Alignment**: Updated Kotlin data models in Android (`SnapActionModels.kt`) and TypeScript interfaces in Web (`src/App.tsx`).
 
 ---
@@ -29,15 +34,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [1.1.0] - 2026-08-15
 
 ### 🚀 Added
-- **Direct Camera Capture Support**: Integrated HTML5 camera capture (`capture="environment"`) allowing mobile and camera-equipped devices to take live photos directly from the Upload Hub.
-- **Dual Upload Controls**: Rendered distinct **"Select Screenshot"** (Gallery selection) and **"Take Photo"** (Live camera) action buttons inside the dropzone.
-- **Project Documentation**: Created `README.md` containing project architecture, feature breakdowns, web/Android technology stacks, and execution instructions.
-- **Remote Synchronization**: Synced project codebase and documentation directly with the remote GitHub repository (`nikfortune3code/snapaction`).
+- **Direct Camera Capture Support**: Integrated HTML5 camera capture (`capture="environment"`).
+- **Dual Upload Controls**: Rendered distinct **"Select Screenshot"** and **"Take Photo"** buttons.
+- **Project Documentation**: Created `README.md` containing architecture, feature breakdowns, and technology stacks.
+- **Remote Synchronization**: Synced project codebase and documentation directly with GitHub repository (`nikfortune3code/snapaction`).
 
 ### 🐛 Fixed
-- **Screenshot Selection Failure**: Fixed an issue where the file picker became unfunctional when re-selecting the same file. Explicitly cleared `fileInputRef.current.value` before triggering `.click()`.
-- **Jetpack Compose Launcher Conflict**: Fixed a duplicate activity launcher invocation in `UploadHub.kt` where nested `.clickable` modifiers caused `IllegalStateException` on image pickers.
-- **Expanded File Formats**: Added explicit support for `.png`, `.jpg`, `.jpeg`, `.webp`, and `.bmp` in file input accept attributes.
+- **Screenshot Selection Failure**: Fixed file picker re-selection issue by clearing `fileInputRef.current.value`.
+- **Jetpack Compose Launcher Conflict**: Fixed duplicate activity launcher invocation in `UploadHub.kt`.
+- **Expanded File Formats**: Added explicit support for `.png`, `.jpg`, `.jpeg`, `.webp`, and `.bmp`.
 
 ---
 
