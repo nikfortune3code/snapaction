@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.0.0] - 2026-08-16
+
+### 🚀 Added
+- **Automatic Transaction SMS Ingestion Engine**:
+  - Implemented `SmsTransactionRepository.kt` to parse bank and payment SMS messages whenever the user opens the application.
+  - Detects keywords: **`spent`**, **`sent`**, **`debited`**, or **`paid`**.
+  - Dynamically constructs the heading for where money was paid (e.g. **`Paid to Lucky Traders`** or **`Paid to Swiggy`**).
+  - Displays **Heading** at the top, **Amount** (e.g. `₹250.00` / `$45.00`) directly below heading, and **Category** (e.g. `UPI Payment`) below the amount.
+  - Automatically places parsed transaction SMS expenses straight into the **Expenses** tab with a `✓ Paid` status badge.
+  - Added an interactive **"Process SMS Transaction"** shortcut button inside the Expenses tab.
+
+---
+
 ## [1.9.0] - 2026-08-16
 
 ### 🚀 Added
