@@ -115,7 +115,7 @@ function parseAndValidateJsonResponse(rawText) {
         is_expense: Boolean(parsed.expense_details?.is_expense),
         merchant: parsed.expense_details?.merchant || null,
         total_amount: typeof parsed.expense_details?.total_amount === 'number' ? parsed.expense_details.total_amount : null,
-        currency: parsed.expense_details?.currency || 'USD',
+        currency: parsed.expense_details?.currency || 'INR',
         date: parsed.expense_details?.date || null
       },
       extracted_items: Array.isArray(parsed.extracted_items)
@@ -139,7 +139,7 @@ function parseAndValidateJsonResponse(rawText) {
       detected_category: 'OTHER',
       confidence_score: 0.50,
       summary_title: 'Unstructured Image Data',
-      expense_details: { is_expense: false, merchant: null, total_amount: null, currency: null, date: null },
+      expense_details: { is_expense: false, merchant: null, total_amount: null, currency: 'INR', date: null },
       extracted_items: [],
       recipe_details: { dish_name: null, estimated_ingredients_required: [], notes: 'Fallback response due to JSON parsing error.' }
     };
@@ -198,9 +198,12 @@ app.post('/api/analyze-image', (req, res, next) => {
       }
     };
 
-    const promptText = `Analyze the uploaded image or screenshot carefully.
+    const promptText = `Analyze the uploaded image, receipt, bill, or camera photo carefully.
 Categorize it into one of: BILL_RECEIPT, GROCERY_LIST, FOOD_DISH, PACKAGED_ITEM, OTHER.
-Extract all structured expenses, list items, or inferred recipe ingredients accurately.
+For BILL_RECEIPT / Receipt / Invoice images:
+- Extract the Shop/Store/Merchant Name (e.g. Reliance Fresh, D-Mart, Starbucks, Utility Vendor) into expense_details.merchant.
+- Extract the total bill amount into expense_details.total_amount.
+- Set currency to INR unless explicitly specified as USD or EUR.
 Return strictly structured JSON adhering to the specified responseSchema.`;
 
     // Call Gemini 2.5 Flash model with responseSchema
