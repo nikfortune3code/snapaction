@@ -14,15 +14,9 @@ class SmsTransactionRepository {
     companion object {
         private const val TAG = "SmsTransactionRepository"
         private val KEYWORDS = listOf("spent", "sent", "debited", "paid", "credited", "deducted")
-        // Scan only July 2026 (epoch millis, uses device timezone)
-        private val JULY_2026_START = java.util.Calendar.getInstance().apply {
-            set(2026, java.util.Calendar.JULY, 1, 0, 0, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }.timeInMillis
-        private val JULY_2026_END = java.util.Calendar.getInstance().apply {
-            set(2026, java.util.Calendar.JULY, 31, 23, 59, 59)
-            set(java.util.Calendar.MILLISECOND, 999)
-        }.timeInMillis
+        // Rolling 90-day window — always reads the most recent 3 months of messages
+        private const val LOOKBACK_DAYS = 90L
+        val LOOKBACK_MS get() = System.currentTimeMillis() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000
     }
 
     /**
@@ -39,12 +33,12 @@ class SmsTransactionRepository {
             val smsUri = Uri.parse("content://sms/inbox")
             val projection = arrayOf("_id", "address", "body", "date")
 
-            // Query SMS inbox for July 2026 only
+            // Query SMS inbox: last 90 days, sorted newest first
             val cursor: Cursor? = context.contentResolver.query(
                 smsUri,
                 projection,
-                "date >= ? AND date <= ?",
-                arrayOf(JULY_2026_START.toString(), JULY_2026_END.toString()),
+                "date >= ?",
+                arrayOf(LOOKBACK_MS.toString()),
                 "date DESC"
             )
 
