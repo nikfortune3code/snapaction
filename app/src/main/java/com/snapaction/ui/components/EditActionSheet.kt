@@ -189,27 +189,73 @@ fun EditActionSheet(
 
                 IntentCategory.EXPENSE -> {
                     var vendor by remember { mutableStateOf(card.expense?.vendor ?: "Merchant / Store") }
-                    var amountStr by remember { mutableStateOf((card.expense?.totalAmount ?: 49.99).toString()) }
+                    var amountStr by remember { mutableStateOf((card.expense?.totalAmount ?: 0.0).toString()) }
+                    var category by remember { mutableStateOf(card.expense?.category ?: "UPI Payment") }
+                    var isPaid by remember { mutableStateOf(card.expense?.isPaid ?: true) }
+                    var dueDate by remember { mutableStateOf(card.expense?.dueDate ?: "") }
 
                     OutlinedTextField(
                         value = vendor,
                         onValueChange = { vendor = it },
-                        label = { Text("Merchant / Biller") },
+                        label = { Text("Merchant / Paid To Name") },
+                        singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = amountStr,
                         onValueChange = { amountStr = it },
-                        label = { Text("Total Amount ($)") },
+                        label = { Text("Total Amount (₹)") },
+                        singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = { category = it },
+                        label = { Text("Category (e.g. UPI Payment, Cash, Utilities)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = dueDate,
+                        onValueChange = { dueDate = it },
+                        label = { Text("Due Date (Optional, e.g. 2026-08-30)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Checkbox(
+                            checked = isPaid,
+                            onCheckedChange = { isPaid = it }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isPaid) "Marked as Paid" else "Mark as Pending",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(20.dp))
                     Button(
                         onClick = {
-                            val amt = amountStr.toDoubleOrNull() ?: 49.99
-                            val updatedExp = ExpenseDetails(vendor = vendor, totalAmount = amt, currency = "USD", dueDate = "2026-08-30", category = "Utilities", isPaid = false)
+                            val amt = amountStr.toDoubleOrNull() ?: 0.0
+                            val updatedExp = ExpenseDetails(
+                                vendor = vendor,
+                                totalAmount = amt,
+                                currency = "INR",
+                                dueDate = dueDate.ifBlank { null },
+                                category = category.ifBlank { "Expense" },
+                                isPaid = isPaid,
+                                isTransactionSms = card.expense?.isTransactionSms ?: false,
+                                rawSmsText = card.expense?.rawSmsText
+                            )
                             onSave(card.copy(category = IntentCategory.EXPENSE, expense = updatedExp))
                         },
                         modifier = Modifier.fillMaxWidth(),
