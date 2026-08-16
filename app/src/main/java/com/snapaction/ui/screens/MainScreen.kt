@@ -29,7 +29,6 @@ import com.snapaction.data.model.IntentCategory
 import com.snapaction.data.model.SnapActionCard
 import com.snapaction.ui.FeedTab
 import com.snapaction.ui.SnapViewModel
-import com.snapaction.ui.SnapViewModelFactory
 import com.snapaction.ui.components.ActionCardItem
 import com.snapaction.ui.components.EditActionSheet
 import com.snapaction.ui.components.UploadHub
@@ -37,17 +36,14 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(
-    viewModel: SnapViewModel = viewModel(
-        factory = SnapViewModelFactory(LocalContext.current.applicationContext)
-    )
-) {
-    val uiState by viewModel.uiState.collectAsState()
+fun MainScreen(viewModel: SnapViewModel) {
     val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsState()
     var isSearchExpanded by remember { mutableStateOf(false) }
-    var showSmsInputDialog by remember { mutableStateOf(false) }
+    var showOfflineExpenseDialog by remember { mutableStateOf(false) }
     var selectedMonthFilter by remember { mutableStateOf("All Months") }
     var showSmsPermissionDialog by remember { mutableStateOf(false) }
+
 
     // Runtime SMS Permission launcher
     val smsPermissionLauncher = rememberLauncherForActivityResult(
@@ -221,17 +217,17 @@ fun MainScreen(
                             Text("Scan Messages", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
                     }
-                    // Secondary: Manual SMS paste
+                    // Secondary: Enter Offline Expense button
                     OutlinedButton(
-                        onClick = { showSmsInputDialog = true },
+                        onClick = { showOfflineExpenseDialog = true },
                         modifier = Modifier
                             .fillMaxWidth(0.85f)
                             .height(48.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Enter SMS Text", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Enter offline Expenses", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
 
                     // Show count badge after scanning
@@ -522,53 +518,92 @@ fun MainScreen(
         )
     }
 
-    // SMS Transaction Dialog
-    if (showSmsInputDialog) {
-        SmsTransactionDialog(
-            onDismiss = { showSmsInputDialog = false },
-            onParseSms = { smsText ->
-                viewModel.processTransactionSmsText(smsText)
-                showSmsInputDialog = false
+    // Enter Offline Expense Dialog
+    if (showOfflineExpenseDialog) {
+        AddOfflineExpenseDialog(
+            onDismiss = { showOfflineExpenseDialog = false },
+            onAddExpense = { vendor, amount, category, isPaid ->
+                viewModel.addOfflineExpense(vendor, amount, category, isPaid)
+                showOfflineExpenseDialog = false
             }
         )
     }
 }
 
 @Composable
-fun SmsTransactionDialog(
+fun AddOfflineExpenseDialog(
     onDismiss: () -> Unit,
-    onParseSms: (String) -> Unit
+    onAddExpense: (vendor: String, amount: Double, category: String, isPaid: Boolean) -> Unit
 ) {
-    var smsText by remember { mutableStateOf("Sent Rs 250.00 to Lucky Traders via UPI") }
+    var vendor by remember { mutableStateOf("") }
+    var amountStr by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Cash / Offline") }
+    var isPaid by remember { mutableStateOf(true) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Parse Bank SMS Transaction", fontWeight = FontWeight.Bold)
+            Text("Enter Offline Expense", fontWeight = FontWeight.Bold)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Detects keywords: 'spent', 'sent', 'debited', 'paid'",
+                    text = "Add a manual cash or offline transaction to your expenses.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
-                    value = smsText,
-                    onValueChange = { smsText = it },
-                    label = { Text("SMS Message Body") },
+                    value = vendor,
+                    onValueChange = { vendor = it },
+                    label = { Text("Paid To / Store Name *") },
+                    placeholder = { Text("e.g. Lucky Traders, Tea Shop") },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                OutlinedTextField(
+                    value = amountStr,
+                    onValueChange = { amountStr = it },
+                    label = { Text("Total Amount (₹) *") },
+                    placeholder = { Text("e.g. 250") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Category") },
+                    placeholder = { Text("e.g. Cash, Food & Dining, Retail") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Checkbox(
+                        checked = isPaid,
+                        onCheckedChange = { isPaid = it }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isPaid) "Marked as Paid" else "Mark as Pending",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    if (smsText.isNotBlank()) onParseSms(smsText)
+                    val amount = amountStr.toDoubleOrNull() ?: 0.0
+                    if (vendor.isNotBlank() && amount > 0) {
+                        onAddExpense(vendor, amount, category, isPaid)
+                    }
                 },
-                enabled = smsText.isNotBlank()
+                enabled = vendor.isNotBlank() && (amountStr.toDoubleOrNull() ?: 0.0) > 0
             ) {
-                Text("Process SMS")
+                Text("Add Expense")
             }
         },
         dismissButton = {
