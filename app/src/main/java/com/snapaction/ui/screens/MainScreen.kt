@@ -29,6 +29,7 @@ import com.snapaction.data.model.IntentCategory
 import com.snapaction.data.model.SnapActionCard
 import com.snapaction.ui.FeedTab
 import com.snapaction.ui.SnapViewModel
+import com.snapaction.ui.SnapViewModelFactory
 import com.snapaction.ui.components.ActionCardItem
 import com.snapaction.ui.components.EditActionSheet
 import com.snapaction.ui.components.UploadHub
@@ -37,7 +38,9 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    viewModel: SnapViewModel = viewModel()
+    viewModel: SnapViewModel = viewModel(
+        factory = SnapViewModelFactory(LocalContext.current.applicationContext)
+    )
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
