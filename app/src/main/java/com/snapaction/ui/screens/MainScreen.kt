@@ -128,12 +128,6 @@ fun MainScreen(viewModel: SnapViewModel) {
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    selected = uiState.selectedTab == FeedTab.REMINDERS,
-                    onClick = { viewModel.selectTab(FeedTab.REMINDERS) },
-                    icon = { Icon(Icons.Default.CalendarToday, contentDescription = "Reminders") },
-                    label = { Text("Reminders") }
-                )
-                NavigationBarItem(
                     selected = uiState.selectedTab == FeedTab.GROCERIES,
                     onClick = { viewModel.selectTab(FeedTab.GROCERIES) },
                     icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Groceries") },
@@ -146,10 +140,16 @@ fun MainScreen(viewModel: SnapViewModel) {
                     label = { Text("Expenses") }
                 )
                 NavigationBarItem(
+                    selected = uiState.selectedTab == FeedTab.REMINDERS,
+                    onClick = { viewModel.selectTab(FeedTab.REMINDERS) },
+                    icon = { Icon(Icons.Default.CalendarToday, contentDescription = "Reminders") },
+                    label = { Text("Reminders") }
+                )
+                NavigationBarItem(
                     selected = uiState.selectedTab == FeedTab.BOOKMARKS,
                     onClick = { viewModel.selectTab(FeedTab.BOOKMARKS) },
-                    icon = { Icon(Icons.Default.Bookmark, contentDescription = "Bookmarks") },
-                    label = { Text("Bookmarks") }
+                    icon = { Icon(Icons.Default.Bookmark, contentDescription = "Bookmark") },
+                    label = { Text("Bookmark") }
                 )
             }
         }
@@ -304,9 +304,9 @@ fun MainScreen(viewModel: SnapViewModel) {
             val filteredCards = remember(uiState.cards, uiState.selectedTab, uiState.searchQuery) {
                 uiState.cards.filter { card ->
                     val matchesTab = when (uiState.selectedTab) {
-                        FeedTab.REMINDERS -> card.category == IntentCategory.EVENT
                         FeedTab.GROCERIES -> card.category == IntentCategory.GROCERY
                         FeedTab.EXPENSES -> card.category == IntentCategory.EXPENSE
+                        FeedTab.REMINDERS -> card.category == IntentCategory.EVENT
                         FeedTab.BOOKMARKS -> card.category == IntentCategory.BOOKMARK
                     }
                     val matchesSearch = if (uiState.searchQuery.isBlank()) true else {
