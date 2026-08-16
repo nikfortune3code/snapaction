@@ -199,6 +199,44 @@ class SnapViewModel(
         }
     }
 
+    /**
+     * Add a manually entered offline expense (e.g. Cash or manual transaction).
+     */
+    fun addOfflineExpense(vendor: String, amount: Double, category: String, isPaid: Boolean) {
+        val cleanVendor = when {
+            vendor.startsWith("Paid to", ignoreCase = true) ||
+            vendor.startsWith("Sent to", ignoreCase = true) ||
+            vendor.startsWith("Spent at", ignoreCase = true) -> vendor
+            else -> "Paid to $vendor"
+        }
+
+        val newCard = SnapActionCard(
+            id = UUID.randomUUID().toString(),
+            category = IntentCategory.EXPENSE,
+            confidenceScore = 1.0,
+            imageUri = "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=800&auto=format&fit=crop&q=60",
+            timestamp = System.currentTimeMillis(),
+            expense = ExpenseDetails(
+                vendor = cleanVendor,
+                totalAmount = amount,
+                currency = "INR",
+                dueDate = null,
+                category = category.ifBlank { "Cash / Offline" },
+                isPaid = isPaid,
+                isTransactionSms = false,
+                rawSmsText = null
+            )
+        )
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { storage.addManualCard(newCard) }
+            val allCards = withContext(Dispatchers.IO) { storage.loadAllCards() }
+            _uiState.value = _uiState.value.copy(
+                cards = allCards,
+                selectedTab = FeedTab.EXPENSES
+            )
+        }
+    }
+
     fun toggleGroceryItem(cardId: String, itemId: String) {
         val updatedCards = _uiState.value.cards.map { card ->
             if (card.id == cardId && card.grocery != null) {
@@ -212,7 +250,7 @@ class SnapViewModel(
         // Persist the toggled state
         val updatedCard = updatedCards.find { it.id == cardId }
         if (updatedCard != null) {
-            viewModelScope.launch { withContext(Dispatchers.IO) { storage.updateManualCard(updatedCard) } }
+            viewModelScope.launch { withContext(Dispatchers.IO) { storage.updateCard(updatedCard) } }
         }
     }
 
@@ -225,7 +263,7 @@ class SnapViewModel(
         _uiState.value = _uiState.value.copy(cards = updatedCards)
         val updatedCard = updatedCards.find { it.id == cardId }
         if (updatedCard != null) {
-            viewModelScope.launch { withContext(Dispatchers.IO) { storage.updateManualCard(updatedCard) } }
+            viewModelScope.launch { withContext(Dispatchers.IO) { storage.updateCard(updatedCard) } }
         }
     }
 
@@ -245,7 +283,7 @@ class SnapViewModel(
             IntentCategory.BOOKMARK -> FeedTab.BOOKMARKS
         }
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { storage.updateManualCard(updatedCard) }
+            withContext(Dispatchers.IO) { storage.updateCard(updatedCard) }
             val allCards = withContext(Dispatchers.IO) { storage.loadAllCards() }
             _uiState.value = _uiState.value.copy(
                 cards = allCards,
