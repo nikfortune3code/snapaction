@@ -135,14 +135,20 @@ class CardStorageRepository(private val context: Context) {
     }
 
     /**
-     * Update an existing manual card (e.g., after user edits it).
+     * Update an existing card (SMS or manual) after user edits it.
      */
-    fun updateManualCard(updated: SnapActionCard) {
+    fun updateCard(updated: SnapActionCard) {
         try {
-            val existing = loadManualCards().map { if (it.id == updated.id) updated else it }
-            prefs.edit().putString(KEY_MANUAL_CARDS, json.encodeToString(existing)).apply()
+            val smsCards = loadSmsCards()
+            if (smsCards.any { it.id == updated.id }) {
+                val newSmsCards = smsCards.map { if (it.id == updated.id) updated else it }
+                saveSmsCards(newSmsCards)
+            } else {
+                val existing = loadManualCards().map { if (it.id == updated.id) updated else it }
+                prefs.edit().putString(KEY_MANUAL_CARDS, json.encodeToString(existing)).apply()
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating manual card", e)
+            Log.e(TAG, "Error updating card", e)
         }
     }
 
