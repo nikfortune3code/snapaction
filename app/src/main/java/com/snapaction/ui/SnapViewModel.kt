@@ -18,14 +18,14 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 enum class FeedTab {
-    REMINDERS,
     GROCERIES,
     EXPENSES,
+    REMINDERS,
     BOOKMARKS
 }
 
 data class UiState(
-    val selectedTab: FeedTab = FeedTab.REMINDERS,
+    val selectedTab: FeedTab = FeedTab.GROCERIES,
     val searchQuery: String = "",
     val cards: List<SnapActionCard> = emptyList(),
     val processingState: ProcessingState? = null,
@@ -170,18 +170,18 @@ class SnapViewModel(
 
     fun uploadScreenshot(imageUri: String, context: Context? = null) {
         val currentPreferred = when (_uiState.value.selectedTab) {
-            FeedTab.REMINDERS -> IntentCategory.EVENT
             FeedTab.GROCERIES -> IntentCategory.GROCERY
             FeedTab.EXPENSES -> IntentCategory.EXPENSE
+            FeedTab.REMINDERS -> IntentCategory.EVENT
             FeedTab.BOOKMARKS -> IntentCategory.BOOKMARK
         }
         viewModelScope.launch {
             visionRepository.processScreenshot(context, imageUri, currentPreferred).collect { state ->
                 if (state.step == ProcessingStep.COMPLETED && state.card != null) {
                     val targetTab = when (state.card.category) {
-                        IntentCategory.EVENT -> FeedTab.REMINDERS
                         IntentCategory.GROCERY -> FeedTab.GROCERIES
                         IntentCategory.EXPENSE -> FeedTab.EXPENSES
+                        IntentCategory.EVENT -> FeedTab.REMINDERS
                         IntentCategory.BOOKMARK -> FeedTab.BOOKMARKS
                     }
                     // Persist the card from the photo/screenshot
@@ -277,9 +277,9 @@ class SnapViewModel(
 
     fun saveEditedCard(updatedCard: SnapActionCard) {
         val targetTab = when (updatedCard.category) {
-            IntentCategory.EVENT -> FeedTab.REMINDERS
             IntentCategory.GROCERY -> FeedTab.GROCERIES
             IntentCategory.EXPENSE -> FeedTab.EXPENSES
+            IntentCategory.EVENT -> FeedTab.REMINDERS
             IntentCategory.BOOKMARK -> FeedTab.BOOKMARKS
         }
         viewModelScope.launch {
