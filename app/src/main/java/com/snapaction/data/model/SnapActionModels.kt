@@ -7,9 +7,9 @@ import java.util.Date
 import java.util.Locale
 
 enum class IntentCategory {
-    EVENT,
     GROCERY,
     EXPENSE,
+    EVENT,
     BOOKMARK
 }
 
