@@ -2,10 +2,11 @@ package com.snapaction.ui
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.snapaction.data.mock.DemoData
 import com.snapaction.data.model.*
 import com.snapaction.data.repository.AiVisionRepository
+import com.snapaction.data.repository.CardStorageRepository
 import com.snapaction.data.repository.ProcessingState
 import com.snapaction.data.repository.SmsTransactionRepository
 import kotlinx.coroutines.Dispatchers
@@ -26,16 +27,18 @@ enum class FeedTab {
 data class UiState(
     val selectedTab: FeedTab = FeedTab.REMINDERS,
     val searchQuery: String = "",
-    val cards: List<SnapActionCard> = DemoData.initialCards,
+    val cards: List<SnapActionCard> = emptyList(),
     val processingState: ProcessingState? = null,
     val activeEditCard: SnapActionCard? = null,
     val showAddEventModal: Boolean = false,
     val isDarkMode: Boolean = true,
     val isSmsScanning: Boolean = false,
-    val smsScannedCount: Int = 0
+    val smsScannedCount: Int = 0,
+    val isLoadingStorage: Boolean = true  // true while reading from SharedPreferences on launch
 )
 
 class SnapViewModel(
+    private val storage: CardStorageRepository,
     private val visionRepository: AiVisionRepository = AiVisionRepository(),
     private val smsRepository: SmsTransactionRepository = SmsTransactionRepository()
 ) : ViewModel() {
@@ -43,9 +46,31 @@ class SnapViewModel(
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    init {
+        // On every launch: restore all persisted cards from local storage
+        loadPersistedCards()
+    }
+
     /**
-     * Scans the Android native Messages app (SMS inbox) for transaction messages.
-     * Requires READ_SMS runtime permission to be already granted before calling this.
+     * Reads all previously synced cards from SharedPreferences and populates the UI.
+     * This ensures transaction history is never lost after restarts or app updates.
+     */
+    private fun loadPersistedCards() {
+        viewModelScope.launch {
+            val allCards = withContext(Dispatchers.IO) {
+                storage.loadAllCards()
+            }
+            _uiState.value = _uiState.value.copy(
+                cards = allCards,
+                isLoadingStorage = false
+            )
+        }
+    }
+
+    /**
+     * Scans the Android native Messages inbox (last 90 days) for bank/UPI transactions.
+     * Only NEW transactions (not already stored) are appended — existing records are never removed.
+     * Persists the merged result immediately so it survives the next app restart.
      */
     fun scanDeviceSmsMessages(context: Context) {
         viewModelScope.launch {
@@ -54,36 +79,42 @@ class SnapViewModel(
                 selectedTab = FeedTab.EXPENSES
             )
 
-            val smsCards = withContext(Dispatchers.IO) {
-                smsRepository.readTransactionSmsFromDevice(context)
+            val addedCount = withContext(Dispatchers.IO) {
+                // 1. Read SMS inbox (last 90 days)
+                val freshCards = smsRepository.readTransactionSmsFromDevice(context)
+                // 2. Merge into persistent store (additive only — returns count of new cards)
+                storage.mergeAndSaveSmsCards(freshCards)
             }
 
-            // Deduplicate: skip SMS cards whose raw SMS text already exists in current list
-            val existingRawTexts = _uiState.value.cards
-                .mapNotNull { it.expense?.rawSmsText }
-                .toSet()
-
-            val newCards = smsCards.filter { card ->
-                card.expense?.rawSmsText?.let { it !in existingRawTexts } ?: true
+            // 3. Reload full card list from storage (includes all historical + new)
+            val allCards = withContext(Dispatchers.IO) {
+                storage.loadAllCards()
             }
 
-            val combinedCards = newCards + _uiState.value.cards
             _uiState.value = _uiState.value.copy(
-                cards = combinedCards,
+                cards = allCards,
                 isSmsScanning = false,
-                smsScannedCount = newCards.size
+                smsScannedCount = addedCount
             )
         }
     }
 
+    /**
+     * Parse a single SMS text manually entered by the user and persist it.
+     */
     fun processTransactionSmsText(smsText: String) {
         val parsedCard = smsRepository.parseTransactionSms(smsText)
         if (parsedCard != null) {
-            val updatedCards = listOf(parsedCard) + _uiState.value.cards
-            _uiState.value = _uiState.value.copy(
-                cards = updatedCards,
-                selectedTab = FeedTab.EXPENSES
-            )
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    storage.mergeAndSaveSmsCards(listOf(parsedCard))
+                }
+                val allCards = withContext(Dispatchers.IO) { storage.loadAllCards() }
+                _uiState.value = _uiState.value.copy(
+                    cards = allCards,
+                    selectedTab = FeedTab.EXPENSES
+                )
+            }
         }
     }
 
@@ -126,11 +157,15 @@ class SnapViewModel(
                 details = details.ifBlank { "Manually created reminder" }
             )
         )
-        _uiState.value = _uiState.value.copy(
-            cards = listOf(newCard) + _uiState.value.cards,
-            selectedTab = FeedTab.REMINDERS,
-            showAddEventModal = false
-        )
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { storage.addManualCard(newCard) }
+            val allCards = withContext(Dispatchers.IO) { storage.loadAllCards() }
+            _uiState.value = _uiState.value.copy(
+                cards = allCards,
+                selectedTab = FeedTab.REMINDERS,
+                showAddEventModal = false
+            )
+        }
     }
 
     fun uploadScreenshot(imageUri: String, context: Context? = null) {
@@ -143,16 +178,18 @@ class SnapViewModel(
         viewModelScope.launch {
             visionRepository.processScreenshot(context, imageUri, currentPreferred).collect { state ->
                 if (state.step == ProcessingStep.COMPLETED && state.card != null) {
-                    val updatedList = listOf(state.card) + _uiState.value.cards
                     val targetTab = when (state.card.category) {
                         IntentCategory.EVENT -> FeedTab.REMINDERS
                         IntentCategory.GROCERY -> FeedTab.GROCERIES
                         IntentCategory.EXPENSE -> FeedTab.EXPENSES
                         IntentCategory.BOOKMARK -> FeedTab.BOOKMARKS
                     }
+                    // Persist the card from the photo/screenshot
+                    withContext(Dispatchers.IO) { storage.addManualCard(state.card) }
+                    val allCards = withContext(Dispatchers.IO) { storage.loadAllCards() }
                     _uiState.value = _uiState.value.copy(
                         processingState = null,
-                        cards = updatedList,
+                        cards = allCards,
                         selectedTab = targetTab
                     )
                 } else {
@@ -172,6 +209,11 @@ class SnapViewModel(
             } else card
         }
         _uiState.value = _uiState.value.copy(cards = updatedCards)
+        // Persist the toggled state
+        val updatedCard = updatedCards.find { it.id == cardId }
+        if (updatedCard != null) {
+            viewModelScope.launch { withContext(Dispatchers.IO) { storage.updateManualCard(updatedCard) } }
+        }
     }
 
     fun toggleExpensePaid(cardId: String) {
@@ -181,6 +223,10 @@ class SnapViewModel(
             } else card
         }
         _uiState.value = _uiState.value.copy(cards = updatedCards)
+        val updatedCard = updatedCards.find { it.id == cardId }
+        if (updatedCard != null) {
+            viewModelScope.launch { withContext(Dispatchers.IO) { storage.updateManualCard(updatedCard) } }
+        }
     }
 
     fun openEditCard(card: SnapActionCard) {
@@ -192,24 +238,40 @@ class SnapViewModel(
     }
 
     fun saveEditedCard(updatedCard: SnapActionCard) {
-        val updatedCards = _uiState.value.cards.map {
-            if (it.id == updatedCard.id) updatedCard else it
-        }
         val targetTab = when (updatedCard.category) {
             IntentCategory.EVENT -> FeedTab.REMINDERS
             IntentCategory.GROCERY -> FeedTab.GROCERIES
             IntentCategory.EXPENSE -> FeedTab.EXPENSES
             IntentCategory.BOOKMARK -> FeedTab.BOOKMARKS
         }
-        _uiState.value = _uiState.value.copy(
-            cards = updatedCards,
-            activeEditCard = null,
-            selectedTab = targetTab
-        )
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { storage.updateManualCard(updatedCard) }
+            val allCards = withContext(Dispatchers.IO) { storage.loadAllCards() }
+            _uiState.value = _uiState.value.copy(
+                cards = allCards,
+                activeEditCard = null,
+                selectedTab = targetTab
+            )
+        }
     }
 
     fun deleteCard(cardId: String) {
-        val updatedCards = _uiState.value.cards.filter { it.id != cardId }
-        _uiState.value = _uiState.value.copy(cards = updatedCards)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { storage.deleteCard(cardId) }
+            val allCards = withContext(Dispatchers.IO) { storage.loadAllCards() }
+            _uiState.value = _uiState.value.copy(cards = allCards)
+        }
+    }
+}
+
+/**
+ * Factory to inject CardStorageRepository (which needs Context) into SnapViewModel.
+ */
+class SnapViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        return SnapViewModel(
+            storage = CardStorageRepository(context.applicationContext)
+        ) as T
     }
 }
