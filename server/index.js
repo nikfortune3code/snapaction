@@ -206,9 +206,9 @@ For BILL_RECEIPT / Receipt / Invoice images:
 - Set currency to INR unless explicitly specified as USD or EUR.
 Return strictly structured JSON adhering to the specified responseSchema.`;
 
-    // Call Gemini 2.5 Flash model with responseSchema
+    // Call Gemini 3.6 Flash model with responseSchema
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents: [imagePart, promptText],
       config: {
         responseMimeType: 'application/json',
@@ -303,7 +303,7 @@ Return ONLY a JSON object with exactly two keys:
 Do not include any explanation or markdown outside the JSON.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents: [imagePart, promptText],
       config: {
         responseMimeType: 'application/json',
