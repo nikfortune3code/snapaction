@@ -591,7 +591,6 @@ fun MainScreen(viewModel: SnapViewModel) {
                         }
                     }
                 }
-                }
             } else if (uiState.selectedTab == FeedTab.GROCERIES && uiState.cartItems.isNotEmpty()) {
                 // Cart tab: show saved cart items
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
