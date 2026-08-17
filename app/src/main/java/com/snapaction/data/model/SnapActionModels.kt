@@ -84,3 +84,18 @@ data class SnapActionCard(
         return sdf.format(Date(timestamp))
     }
 }
+
+/**
+ * Represents a single cart item AI-detected from an image.
+ * productName and brandName are auto-filled by Vision AI;
+ * quantity is entered manually by the user.
+ */
+@Serializable
+data class CartItem(
+    val id: String,
+    val imageUri: String,                // The source image URI
+    val productName: String,             // Auto-filled from AI
+    val brandName: String? = null,       // Null if brand not detected
+    val quantity: Int = 1,               // User-editable
+    val timestamp: Long = System.currentTimeMillis()
+)
