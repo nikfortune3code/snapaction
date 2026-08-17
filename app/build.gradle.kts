@@ -79,4 +79,7 @@ dependencies {
     // Kotlinx Serialization & Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // OkHttp for backend multipart image uploads (Cart AI feature)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
