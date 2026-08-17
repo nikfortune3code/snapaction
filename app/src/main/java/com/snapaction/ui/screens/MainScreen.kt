@@ -48,6 +48,7 @@ fun MainScreen(viewModel: SnapViewModel) {
     var showOfflineExpenseDialog by remember { mutableStateOf(false) }
     var selectedMonthFilter by remember { mutableStateOf("All Months") }
     var showSmsPermissionDialog by remember { mutableStateOf(false) }
+    var activeExpenseTab by remember { mutableStateOf("Debited") }
 
     // ── Cart: camera capture URI holder ──────────────────────────────────────
     var cartCameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -460,9 +461,23 @@ fun MainScreen(viewModel: SnapViewModel) {
                     if (selectedMonthFilter == "All Months") expenseCards else expenseCards.filter { it.getMonthYearString() == selectedMonthFilter }
                 }
 
-                val totalSpend = monthFilteredExpenses.sumOf { it.expense?.totalAmount ?: 0.0 }
-                val paidSpend = monthFilteredExpenses.filter { it.expense?.isPaid == true }.sumOf { it.expense?.totalAmount ?: 0.0 }
-                val pendingSpend = monthFilteredExpenses.filter { it.expense?.isPaid == false }.sumOf { it.expense?.totalAmount ?: 0.0 }
+                // Separate Debited (spent) vs Credited (refunds)
+                val spentExpenses = remember(monthFilteredExpenses) {
+                    monthFilteredExpenses.filter { card ->
+                        val exp = card.expense
+                        exp != null && exp.category != "Credit / Refund" && !exp.vendor.contains("Credited", ignoreCase = true)
+                    }
+                }
+                val creditedExpenses = remember(monthFilteredExpenses) {
+                    monthFilteredExpenses.filter { card ->
+                        val exp = card.expense
+                        exp != null && (exp.category == "Credit / Refund" || exp.vendor.contains("Credited", ignoreCase = true))
+                    }
+                }
+
+                val totalSpend = spentExpenses.sumOf { it.expense?.totalAmount ?: 0.0 }
+                val paidSpend = spentExpenses.filter { it.expense?.isPaid == true }.sumOf { it.expense?.totalAmount ?: 0.0 }
+                val pendingSpend = spentExpenses.filter { it.expense?.isPaid == false }.sumOf { it.expense?.totalAmount ?: 0.0 }
 
                 // Monthly Summary Banner
                 Card(
@@ -487,7 +502,7 @@ fun MainScreen(viewModel: SnapViewModel) {
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "${monthFilteredExpenses.size} Expenses",
+                                text = "${spentExpenses.size} Expenses",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -547,47 +562,108 @@ fun MainScreen(viewModel: SnapViewModel) {
                     }
                 }
 
+                // Debited / Credited Tabs just below months chips
+                TabRow(
+                    selectedTabIndex = if (activeExpenseTab == "Debited") 0 else 1,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                ) {
+                    Tab(
+                        selected = activeExpenseTab == "Debited",
+                        onClick = { activeExpenseTab = "Debited" },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDownward,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (activeExpenseTab == "Debited") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Debited (${spentExpenses.size})", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    )
+                    Tab(
+                        selected = activeExpenseTab == "Credited",
+                        onClick = { activeExpenseTab = "Credited" },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowUpward,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (activeExpenseTab == "Credited") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Credited (${creditedExpenses.size})", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
 
                 // Group Expenses by Month
-                val groupedByMonth = monthFilteredExpenses.groupBy { it.getMonthYearString() }
+                val displayExpenses = if (activeExpenseTab == "Debited") spentExpenses else creditedExpenses
 
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    groupedByMonth.forEach { (monthName, cardsInMonth) ->
-                        val monthTotal = cardsInMonth.sumOf { it.expense?.totalAmount ?: 0.0 }
-                        item {
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                if (displayExpenses.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No ${activeExpenseTab.lowercase()} transactions found",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    val groupedByMonth = displayExpenses.groupBy { it.getMonthYearString() }
+
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        groupedByMonth.forEach { (monthName, cardsInMonth) ->
+                            val monthTotal = cardsInMonth.sumOf { it.expense?.totalAmount ?: 0.0 }
+                            item {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                                    shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Text(
-                                        text = "📅 $monthName",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = String.format(Locale.US, "Total: ₹%.2f", monthTotal),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "📅 $monthName",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = String.format(Locale.US, "Total: ₹%.2f", monthTotal),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             }
-                        }
-                        items(cardsInMonth, key = { it.id }) { card ->
-                            ActionCardItem(
-                                card = card,
-                                onToggleGrocery = { cardId, itemId -> viewModel.toggleGroceryItem(cardId, itemId) },
-                                onTogglePaid = { cardId -> viewModel.toggleExpensePaid(cardId) },
-                                onEditCard = { editCard -> viewModel.openEditCard(editCard) },
-                                onDeleteCard = { delId -> viewModel.deleteCard(delId) }
-                            )
+                            items(cardsInMonth, key = { it.id }) { card ->
+                                ActionCardItem(
+                                    card = card,
+                                    onToggleGrocery = { cardId, itemId -> viewModel.toggleGroceryItem(cardId, itemId) },
+                                    onTogglePaid = { cardId -> viewModel.toggleExpensePaid(cardId) },
+                                    onEditCard = { editCard -> viewModel.openEditCard(editCard) },
+                                    onDeleteCard = { delId -> viewModel.deleteCard(delId) }
+                                )
+                            }
                         }
                     }
                 }
