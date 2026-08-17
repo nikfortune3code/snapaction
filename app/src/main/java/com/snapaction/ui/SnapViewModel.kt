@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.snapaction.data.model.*
+import com.snapaction.data.network.CartAnalysisResult
+import com.snapaction.data.network.CartApiService
 import com.snapaction.data.repository.AiVisionRepository
 import com.snapaction.data.repository.CardStorageRepository
 import com.snapaction.data.repository.ProcessingState
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.UUID
 
 enum class FeedTab {
@@ -34,7 +37,19 @@ data class UiState(
     val isDarkMode: Boolean = true,
     val isSmsScanning: Boolean = false,
     val smsScannedCount: Int = 0,
-    val isLoadingStorage: Boolean = true  // true while reading from SharedPreferences on launch
+    val isLoadingStorage: Boolean = true,  // true while reading from SharedPreferences on launch
+
+    // ── Cart AI feature ──────────────────────────────────────────────────────
+    /** Persisted cart items saved by the user via "Add to Cart" */
+    val cartItems: List<CartItem> = emptyList(),
+    /** True while image is being uploaded and analysed by the backend */
+    val isCartAnalyzing: Boolean = false,
+    /** Holds the AI result awaiting user confirmation (shown in form dialog) */
+    val pendingCartAnalysis: CartAnalysisResult? = null,
+    /** URI of the image the user selected for cart analysis */
+    val pendingCartImageUri: String? = null,
+    /** Error message if cart analysis failed */
+    val cartAnalysisError: String? = null
 )
 
 class SnapViewModel(
@@ -299,6 +314,71 @@ class SnapViewModel(
             val allCards = withContext(Dispatchers.IO) { storage.loadAllCards() }
             _uiState.value = _uiState.value.copy(cards = allCards)
         }
+    }
+
+    // ── Cart AI Functions ────────────────────────────────────────────────────
+
+    /**
+     * Uploads [imageFile] to the Node.js backend for Gemini Vision analysis.
+     * On success, stores the result in [UiState.pendingCartAnalysis] so the
+     * form dialog can pre-fill productName and brandName.
+     * On failure, sets [UiState.cartAnalysisError] with a user-facing message.
+     */
+    fun analyzeCartImage(imageFile: File, imageUri: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isCartAnalyzing = true,
+                cartAnalysisError = null,
+                pendingCartAnalysis = null,
+                pendingCartImageUri = imageUri
+            )
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    CartApiService.analyzeCartImage(imageFile)
+                }
+                _uiState.value = _uiState.value.copy(
+                    isCartAnalyzing = false,
+                    pendingCartAnalysis = result
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isCartAnalyzing = false,
+                    cartAnalysisError = "Could not analyse image: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /** Called when the user taps Save in the Cart form dialog. */
+    fun saveCartItem(productName: String, brandName: String?, quantity: Int) {
+        val imageUri = _uiState.value.pendingCartImageUri
+            ?: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400"
+        val newItem = CartItem(
+            id = UUID.randomUUID().toString(),
+            imageUri = imageUri,
+            productName = productName.ifBlank { "Unknown Product" },
+            brandName = brandName?.ifBlank { null },
+            quantity = quantity.coerceAtLeast(1)
+        )
+        _uiState.value = _uiState.value.copy(
+            cartItems = listOf(newItem) + _uiState.value.cartItems,
+            pendingCartAnalysis = null,
+            pendingCartImageUri = null
+        )
+    }
+
+    /** Dismisses the pending cart analysis dialog without saving. */
+    fun dismissCartAnalysis() {
+        _uiState.value = _uiState.value.copy(
+            pendingCartAnalysis = null,
+            pendingCartImageUri = null,
+            cartAnalysisError = null
+        )
+    }
+
+    /** Clears a transient cart analysis error toast. */
+    fun clearCartAnalysisError() {
+        _uiState.value = _uiState.value.copy(cartAnalysisError = null)
     }
 }
 
