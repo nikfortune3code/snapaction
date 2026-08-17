@@ -1,7 +1,11 @@
 package com.snapaction.ui.screens
 
 import android.Manifest
+ import android.content.ContentValues
+import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -32,6 +36,7 @@ import com.snapaction.ui.SnapViewModel
 import com.snapaction.ui.components.ActionCardItem
 import com.snapaction.ui.components.EditActionSheet
 import com.snapaction.ui.components.UploadHub
+import java.io.File
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +49,39 @@ fun MainScreen(viewModel: SnapViewModel) {
     var selectedMonthFilter by remember { mutableStateOf("All Months") }
     var showSmsPermissionDialog by remember { mutableStateOf(false) }
 
+    // ── Cart: camera capture URI holder ──────────────────────────────────────
+    var cartCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Cart gallery picker — picks an image, copies it to a temp file, sends to backend
+    val cartGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val tmpFile = uriToTempFile(context, it) ?: return@let
+            viewModel.analyzeCartImage(tmpFile, it.toString())
+        }
+    }
+
+    // Cart camera capture launcher
+    val cartCameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            cartCameraUri?.let { uri ->
+                val tmpFile = uriToTempFile(context, uri) ?: return@let
+                viewModel.analyzeCartImage(tmpFile, uri.toString())
+            }
+        }
+    }
+
+    // Helper to create a fresh camera URI
+    fun createCartCameraUri(): Uri? {
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, "cart_${System.currentTimeMillis()}.jpg")
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+        }
+        return context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+    }
 
     // Runtime SMS Permission launcher
     val smsPermissionLauncher = rememberLauncherForActivityResult(
@@ -264,6 +302,98 @@ fun MainScreen(viewModel: SnapViewModel) {
                         }
                     }
                 }
+            } else if (uiState.selectedTab == FeedTab.GROCERIES) {
+                // Cart Tab: AI Image Upload buttons + loading indicator
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (uiState.isCartAnalyzing) {
+                        // ── Loading state ──
+                        Card(
+                            modifier = Modifier.fillMaxWidth(0.85f),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    "Analysing image — detecting product & brand...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    } else {
+                        // ── Primary: Take Photo ──
+                        Button(
+                            onClick = {
+                                val uri = createCartCameraUri()
+                                cartCameraUri = uri
+                                uri?.let { cartCameraLauncher.launch(it) }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Take Photo", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                        // ── Secondary: Choose from Gallery ──
+                        OutlinedButton(
+                            onClick = { cartGalleryLauncher.launch("image/*") },
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Choose from Gallery", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Error toast card
+                    uiState.cartAnalysisError?.let { err ->
+                        LaunchedEffect(err) {
+                            kotlinx.coroutines.delay(4000)
+                            viewModel.clearCartAnalysisError()
+                        }
+                        Card(
+                            modifier = Modifier.fillMaxWidth(0.85f),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(
+                                text = "⚠ $err",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
             }
 
             // Permission Denied Explanation Dialog
@@ -461,7 +591,15 @@ fun MainScreen(viewModel: SnapViewModel) {
                         }
                     }
                 }
-            } else if (filteredCards.isEmpty()) {
+                }
+            } else if (uiState.selectedTab == FeedTab.GROCERIES && uiState.cartItems.isNotEmpty()) {
+                // Cart tab: show saved cart items
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(uiState.cartItems, key = { it.id }) { cartItem ->
+                        CartItemCard(item = cartItem)
+                    }
+                }
+            } else if (filteredCards.isEmpty() && uiState.selectedTab != FeedTab.GROCERIES) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -508,7 +646,19 @@ fun MainScreen(viewModel: SnapViewModel) {
         )
     }
 
-    // Manual Event Creation Dialog
+    // ── Cart Analysis Result Dialog ──────────────────────────────────────────
+    uiState.pendingCartAnalysis?.let { analysis ->
+        CartItemFormDialog(
+            productName  = analysis.productName,
+            brandName    = analysis.brandName,
+            onDismiss    = { viewModel.dismissCartAnalysis() },
+            onSave       = { product, brand, qty ->
+                viewModel.saveCartItem(product, brand, qty)
+            }
+        )
+    }
+
+    // ── Manual Event Creation Dialog ─────────────────────────────────────────
     if (uiState.showAddEventModal) {
         AddEventDialog(
             onDismiss = { viewModel.closeAddEventModal() },
@@ -614,6 +764,185 @@ fun AddOfflineExpenseDialog(
     )
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Cart: Pre-filled form dialog after AI analysis
+// ──────────────────────────────────────────────────────────────────────────────
+
+@Composable
+fun CartItemFormDialog(
+    productName: String,
+    brandName: String?,
+    onDismiss: () -> Unit,
+    onSave: (productName: String, brandName: String?, quantity: Int) -> Unit
+) {
+    var product  by remember { mutableStateOf(productName) }
+    var brand    by remember { mutableStateOf(brandName ?: "") }
+    var qtyStr   by remember { mutableStateOf("1") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Add to Cart", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "AI detected the following product. Edit any field before saving.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Product Name — always pre-filled
+                OutlinedTextField(
+                    value = product,
+                    onValueChange = { product = it },
+                    label = { Text("Product Name *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(Icons.Default.Inventory2, contentDescription = null, modifier = Modifier.size(18.dp))
+                    }
+                )
+
+                // Brand Name — pre-filled or blank with hint placeholder
+                OutlinedTextField(
+                    value = brand,
+                    onValueChange = { brand = it },
+                    label = { Text("Brand") },
+                    placeholder = {
+                        Text(
+                            "Brand not detected — tap to enter",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(Icons.Default.Sell, contentDescription = null, modifier = Modifier.size(18.dp))
+                    }
+                )
+
+                // Quantity
+                OutlinedTextField(
+                    value = qtyStr,
+                    onValueChange = { if (it.all(Char::isDigit)) qtyStr = it },
+                    label = { Text("Quantity") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(Icons.Default.Numbers, contentDescription = null, modifier = Modifier.size(18.dp))
+                    }
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (product.isNotBlank()) {
+                        val qty = qtyStr.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                        onSave(product, brand.ifBlank { null }, qty)
+                    }
+                },
+                enabled = product.isNotBlank()
+            ) {
+                Icon(Icons.Default.AddShoppingCart, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Add to Cart")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Cart: Individual item card displayed in the Cart list
+// ──────────────────────────────────────────────────────────────────────────────
+
+@Composable
+fun CartItemCard(item: com.snapaction.data.model.CartItem) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Product icon placeholder
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ShoppingBag,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.productName,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                item.brandName?.let { brand ->
+                    Text(
+                        text = brand,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            // Quantity badge
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                Text(
+                    text = "×${item.quantity}",
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Utility: copy a content URI to a temp file OkHttp can read as a File
+// ──────────────────────────────────────────────────────────────────────────────
+
+fun uriToTempFile(context: android.content.Context, uri: android.net.Uri): java.io.File? {
+    return try {
+        val ext = when (context.contentResolver.getType(uri)) {
+            "image/png"  -> ".png"
+            "image/webp" -> ".webp"
+            else         -> ".jpg"
+        }
+        val tmp = java.io.File(context.cacheDir, "cart_upload_${System.currentTimeMillis()}$ext")
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            tmp.outputStream().use { output -> input.copyTo(output) }
+        }
+        tmp
+    } catch (e: Exception) {
+        null
+    }
+}
 @Composable
 fun AddEventDialog(
     onDismiss: () -> Unit,
