@@ -130,8 +130,8 @@ fun MainScreen(viewModel: SnapViewModel) {
                 NavigationBarItem(
                     selected = uiState.selectedTab == FeedTab.GROCERIES,
                     onClick = { viewModel.selectTab(FeedTab.GROCERIES) },
-                    icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Groceries") },
-                    label = { Text("Groceries") }
+                    icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Cart") },
+                    label = { Text("Cart") }
                 )
                 NavigationBarItem(
                     selected = uiState.selectedTab == FeedTab.EXPENSES,
