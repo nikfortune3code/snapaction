@@ -235,6 +235,119 @@ Return strictly structured JSON adhering to the specified responseSchema.`;
   }
 });
 
+// ─── Cart Item Analysis: productName + brandName ────────────────────────────
+
+/** Strict schema: only productName (string) and brandName (string | null) */
+const cartItemSchema = {
+  type: Type.OBJECT,
+  properties: {
+    productName: {
+      type: Type.STRING,
+      description: 'The specific product/object name (e.g. "Casio G-Shock Watch", "Mechanical Keyboard", "Jack Daniel\'s Whiskey")'
+    },
+    brandName: {
+      type: Type.STRING,
+      nullable: true,
+      description: 'The brand name if visible via logo or text (e.g. "Casio", "Apple", "Nike"). Return null if brand cannot be identified.'
+    }
+  },
+  required: ['productName', 'brandName']
+};
+
+/**
+ * POST /api/analyze-cart-item
+ * Accepts multipart/form-data with field "image".
+ * Returns { success: true, data: { productName, brandName } }
+ */
+app.post('/api/analyze-cart-item', (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'FILE_SIZE_LIMIT_EXCEEDED', message: 'File exceeds the 5MB size limit.' });
+      }
+      if (err.code === 'INVALID_FILE_TYPE') {
+        return res.status(400).json({ error: 'INVALID_FILE_TYPE', message: err.message });
+      }
+      return res.status(400).json({ error: 'UPLOAD_ERROR', message: err.message || 'Error uploading file.' });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'MISSING_FILE', message: 'Provide an image under field "image".' });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'MISSING_API_KEY', message: 'GEMINI_API_KEY is not configured on the server.' });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    const imageBase64 = req.file.buffer.toString('base64');
+    const imagePart = {
+      inlineData: { data: imageBase64, mimeType: req.file.mimetype }
+    };
+
+    const promptText = `You are a product recognition AI. Analyze the image carefully.
+
+Identify the primary object/product shown (e.g., watch, keyboard, whiskey bottle, sneakers, headphones, laptop).
+If a brand name, logo, or text is visible, extract the brand name exactly (e.g., "Apple", "Nike", "Casio", "Sony").
+If no brand can be identified from the image, return null for brandName — never guess or invent a brand.
+
+Return ONLY a JSON object with exactly two keys:
+- "productName": a concise, specific product name (string, never null)
+- "brandName": the detected brand name (string) OR null if not visible
+
+Do not include any explanation or markdown outside the JSON.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [imagePart, promptText],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: cartItemSchema,
+        temperature: 0.1
+      }
+    });
+
+    // Parse and validate the structured output
+    let rawText = response.text?.trim() ?? '';
+    rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      // Graceful fallback if JSON malformed
+      parsed = { productName: 'Unknown Product', brandName: null };
+    }
+
+    const result = {
+      productName: (typeof parsed.productName === 'string' && parsed.productName.trim())
+        ? parsed.productName.trim()
+        : 'Unknown Product',
+      brandName: (typeof parsed.brandName === 'string' && parsed.brandName.trim())
+        ? parsed.brandName.trim()
+        : null
+    };
+
+    console.log(`[Cart] Detected: "${result.productName}" | Brand: ${result.brandName ?? 'null'}`);
+
+    return res.status(200).json({ success: true, data: result });
+
+  } catch (error) {
+    console.error('Error in /api/analyze-cart-item:', error);
+    return res.status(500).json({
+      error: 'AI_PROCESSING_ERROR',
+      message: 'Failed to analyze image.',
+      details: error.message
+    });
+  }
+});
+
+// ─── Health Check ─────────────────────────────────────────────────────────────
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', engine: 'SnapAction Gemini Vision Server' });
