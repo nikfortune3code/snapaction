@@ -353,7 +353,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', engine: 'SnapAction Gemini Vision Server' });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`⚡ SnapAction Vision Backend Server running on http://localhost:${PORT}`);
+// Start Server — bind to 0.0.0.0 so LAN devices (physical phones) can connect
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`⚡ SnapAction Vision Backend Server running on http://0.0.0.0:${PORT}`);
+  console.log(`   LAN access: http://192.168.1.7:${PORT}`);
 });
