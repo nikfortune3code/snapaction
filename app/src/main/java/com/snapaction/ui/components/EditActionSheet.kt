@@ -71,7 +71,7 @@ fun EditActionSheet(
                 IntentCategory.values().forEach { cat ->
                     val label = when (cat) {
                         IntentCategory.EVENT -> "Reminders"
-                        IntentCategory.GROCERY -> "Groceries"
+                        IntentCategory.GROCERY -> "Cart"
                         IntentCategory.EXPENSE -> "Expenses"
                         IntentCategory.BOOKMARK -> "Bookmarks"
                     }
@@ -183,7 +183,7 @@ fun EditActionSheet(
                     ) {
                         Icon(imageVector = Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save to Groceries")
+                        Text("Save to Cart")
                     }
                 }
 
