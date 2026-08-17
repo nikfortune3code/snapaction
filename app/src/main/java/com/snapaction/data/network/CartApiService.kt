@@ -1,4 +1,4 @@
-﻿package com.snapaction.data.network
+package com.snapaction.data.network
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,7 +30,9 @@ data class CartAnalysisResult(
  */
 object CartApiService {
 
-    private const val BASE_URL = "http://10.0.2.2:3001"
+    // Physical device on same Wi-Fi: use your PC's LAN IP
+    // Emulator only: use http://10.0.2.2:3001
+    private const val BASE_URL = "http://192.168.1.7:3001"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
