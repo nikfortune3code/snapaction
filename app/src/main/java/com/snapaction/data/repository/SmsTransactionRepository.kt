@@ -90,14 +90,18 @@ class SmsTransactionRepository {
     fun parseTransactionSms(smsBody: String, timestamp: Long = System.currentTimeMillis()): SnapActionCard? {
         val lower = smsBody.lowercase()
 
-        // Ignore non-transaction alerts like disbursement consent notices or card statements
-        if (lower.contains("disbursement") || lower.contains("statement")) return null
+        // Ignore non-transaction alerts like disbursement notices, statements, or warning reminders
+        val ignoreKeywords = listOf(
+            "disbursement", "statement", "avoid charges", "avoid late",
+            "minimum due", "min due", "due by", "due date"
+        )
+        if (ignoreKeywords.any { lower.contains(it) }) return null
 
         // Must contain at least one transaction keyword
         if (KEYWORDS.none { lower.contains(it) }) return null
 
-        // Extract Amount: e.g. Rs 250.00, INR 500, $45.00, Rs.250, 250.00
-        val amountRegex = Regex("""(?:rs\.?|inr|\$|₹)\s*([\d,]+\.?\d*)""", RegexOption.IGNORE_CASE)
+        // Extract Amount: e.g. Rs 250.00, INR 500, $45.00, Rs.250, 250.00, or numbers immediately following spent/sent/debited
+        val amountRegex = Regex("""(?:rs\.?|inr|\$|₹|spent|sent|debited|paid|credited|deducted)\s*(?:by|for|of|Rs\.?|INR|\$|₹)?\s*([\d,]+\.?\d*)""", RegexOption.IGNORE_CASE)
         val amountMatch = amountRegex.find(smsBody)
         val totalAmount = amountMatch?.groupValues?.get(1)?.replace(",", "")?.toDoubleOrNull() ?: 0.0
 
