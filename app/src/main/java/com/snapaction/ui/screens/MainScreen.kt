@@ -52,39 +52,7 @@ fun MainScreen(viewModel: SnapViewModel) {
     var showConfirmPurchaseDateDialog by remember { mutableStateOf(false) }
     var pendingPurchaseItem by remember { mutableStateOf<com.snapaction.data.model.CartItem?>(null) }
 
-    // ── Cart: camera capture URI holder ──────────────────────────────────────
-    var cartCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Cart gallery picker — picks an image, copies it to a temp file, sends to backend
-    val cartGalleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            val tmpFile = uriToTempFile(context, it) ?: return@let
-            viewModel.analyzeCartImage(tmpFile, it.toString())
-        }
-    }
-
-    // Cart camera capture launcher
-    val cartCameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success) {
-            cartCameraUri?.let { uri ->
-                val tmpFile = uriToTempFile(context, uri) ?: return@let
-                viewModel.analyzeCartImage(tmpFile, uri.toString())
-            }
-        }
-    }
-
-    // Helper to create a fresh camera URI
-    fun createCartCameraUri(): Uri? {
-        val values = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, "cart_${System.currentTimeMillis()}.jpg")
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-        }
-        return context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-    }
 
     // Runtime SMS Permission launcher
     val smsPermissionLauncher = rememberLauncherForActivityResult(
@@ -201,9 +169,28 @@ fun MainScreen(viewModel: SnapViewModel) {
                 .padding(innerPadding)
         ) {
             if (uiState.selectedTab != FeedTab.EXPENSES) {
+                val activeProcessingState = if (uiState.selectedTab == FeedTab.GROCERIES && uiState.isCartAnalyzing) {
+                    com.snapaction.data.repository.ProcessingState(
+                        step = com.snapaction.data.model.ProcessingStep.ANALYZING,
+                        message = "Analysing product image..."
+                    )
+                } else {
+                    uiState.processingState
+                }
+
                 UploadHub(
-                    processingState = uiState.processingState,
-                    onPickImage = { uri -> viewModel.uploadScreenshot(uri, context) }
+                    processingState = activeProcessingState,
+                    onPickImage = { uriStr ->
+                        if (uiState.selectedTab == FeedTab.GROCERIES) {
+                            val uri = Uri.parse(uriStr)
+                            val tmpFile = uriToTempFile(context, uri)
+                            if (tmpFile != null) {
+                                viewModel.analyzeCartImage(tmpFile, uriStr)
+                            }
+                        } else {
+                            viewModel.uploadScreenshot(uriStr, context)
+                        }
+                    }
                 )
             }
 
@@ -308,78 +295,18 @@ fun MainScreen(viewModel: SnapViewModel) {
                     }
                 }
             } else if (uiState.selectedTab == FeedTab.GROCERIES) {
-                // Cart Tab: AI Image Upload buttons + loading indicator
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (uiState.isCartAnalyzing) {
-                        // ── Loading state ──
-                        Card(
-                            modifier = Modifier.fillMaxWidth(0.85f),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    "Analysing image — detecting product & brand...",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                    } else {
-                        // ── Primary: Take Photo ──
-                        Button(
-                            onClick = {
-                                val uri = createCartCameraUri()
-                                cartCameraUri = uri
-                                uri?.let { cartCameraLauncher.launch(it) }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth(0.85f)
-                                .height(48.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Take Photo", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        }
-                        // ── Secondary: Choose from Gallery ──
-                        OutlinedButton(
-                            onClick = { cartGalleryLauncher.launch("image/*") },
-                            modifier = Modifier
-                                .fillMaxWidth(0.85f)
-                                .height(48.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Choose from Gallery", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        }
+                // Cart Tab: Error notification card only (since image upload is now in the global UploadHub)
+                uiState.cartAnalysisError?.let { err ->
+                    LaunchedEffect(err) {
+                        kotlinx.coroutines.delay(4000)
+                        viewModel.clearCartAnalysisError()
                     }
-
-                    // Error toast card
-                    uiState.cartAnalysisError?.let { err ->
-                        LaunchedEffect(err) {
-                            kotlinx.coroutines.delay(4000)
-                            viewModel.clearCartAnalysisError()
-                        }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Card(
                             modifier = Modifier.fillMaxWidth(0.85f),
                             colors = CardDefaults.cardColors(
