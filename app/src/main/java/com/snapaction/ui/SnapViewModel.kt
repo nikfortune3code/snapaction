@@ -380,6 +380,30 @@ class SnapViewModel(
     fun clearCartAnalysisError() {
         _uiState.value = _uiState.value.copy(cartAnalysisError = null)
     }
+
+    /** Marks a cart item as purchased with a specific date. */
+    fun markCartItemPurchased(itemId: String, dateOfPurchase: String) {
+        val updated = _uiState.value.cartItems.map { item ->
+            if (item.id == itemId) {
+                item.copy(isPurchased = true, purchaseDate = dateOfPurchase)
+            } else {
+                item
+            }
+        }
+        _uiState.value = _uiState.value.copy(cartItems = updated)
+    }
+
+    /** Unmarks a cart item as purchased, reverting it to things to purchase. */
+    fun unmarkCartItemPurchased(itemId: String) {
+        val updated = _uiState.value.cartItems.map { item ->
+            if (item.id == itemId) {
+                item.copy(isPurchased = false, purchaseDate = null)
+            } else {
+                item
+            }
+        }
+        _uiState.value = _uiState.value.copy(cartItems = updated)
+    }
 }
 
 /**
