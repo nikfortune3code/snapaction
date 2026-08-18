@@ -49,6 +49,8 @@ fun MainScreen(viewModel: SnapViewModel) {
     var selectedMonthFilter by remember { mutableStateOf("All Months") }
     var showSmsPermissionDialog by remember { mutableStateOf(false) }
     var activeExpenseTab by remember { mutableStateOf("Debited") }
+    var showConfirmPurchaseDateDialog by remember { mutableStateOf(false) }
+    var pendingPurchaseItem by remember { mutableStateOf<com.snapaction.data.model.CartItem?>(null) }
 
     // ── Cart: camera capture URI holder ──────────────────────────────────────
     var cartCameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -712,10 +714,91 @@ fun MainScreen(viewModel: SnapViewModel) {
                     }
                 }
             } else if (uiState.selectedTab == FeedTab.GROCERIES && uiState.cartItems.isNotEmpty()) {
-                // Cart tab: show saved cart items
+                // Cart tab: split into Things to purchase and Purchase history sections
+                val toPurchase = uiState.cartItems.filter { !it.isPurchased }
+                val purchased = uiState.cartItems.filter { it.isPurchased }
+
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(uiState.cartItems, key = { it.id }) { cartItem ->
-                        CartItemCard(item = cartItem)
+                    // Things to purchase Section
+                    item {
+                        Text(
+                            text = "🛍️ Things to purchase",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                    if (toPurchase.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "All items purchased!",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(toPurchase, key = { it.id }) { item ->
+                            CartItemCard(
+                                item = item,
+                                onToggleChecked = { cartItem ->
+                                    if (cartItem.isPurchased) {
+                                        viewModel.unmarkCartItemPurchased(cartItem.id)
+                                    } else {
+                                        pendingPurchaseItem = cartItem
+                                        showConfirmPurchaseDateDialog = true
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    // Purchase history Section
+                    item {
+                        Text(
+                            text = "✅ Purchase history",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                    if (purchased.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No purchase history yet",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(purchased, key = { it.id }) { item ->
+                            CartItemCard(
+                                item = item,
+                                onToggleChecked = { cartItem ->
+                                    if (cartItem.isPurchased) {
+                                        viewModel.unmarkCartItemPurchased(cartItem.id)
+                                    } else {
+                                        pendingPurchaseItem = cartItem
+                                        showConfirmPurchaseDateDialog = true
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             } else if (filteredCards.isEmpty() && uiState.selectedTab != FeedTab.GROCERIES) {
@@ -794,6 +877,79 @@ fun MainScreen(viewModel: SnapViewModel) {
             onAddExpense = { vendor, amount, category, isPaid ->
                 viewModel.addOfflineExpense(vendor, amount, category, isPaid)
                 showOfflineExpenseDialog = false
+            }
+        )
+    }
+
+    // ── Confirm Purchase Date Dialog ─────────────────────────────────────────
+    if (showConfirmPurchaseDateDialog) {
+        val today = remember {
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        }
+        var enteredDate by remember { mutableStateOf(today) }
+
+        AlertDialog(
+            onDismissRequest = {
+                showConfirmPurchaseDateDialog = false
+                pendingPurchaseItem = null
+            },
+            title = {
+                Text("Confirm Purchase Date", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Specify the date this item was purchased:",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = enteredDate,
+                        onValueChange = { enteredDate = it },
+                        label = { Text("Date of Purchase (YYYY-MM-DD) *") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = {
+                            pendingPurchaseItem?.let { item ->
+                                viewModel.markCartItemPurchased(item.id, today)
+                            }
+                            showConfirmPurchaseDateDialog = false
+                            pendingPurchaseItem = null
+                        }
+                    ) {
+                        Text("Purchased Today")
+                    }
+                    Button(
+                        onClick = {
+                            if (enteredDate.isNotBlank()) {
+                                pendingPurchaseItem?.let { item ->
+                                    viewModel.markCartItemPurchased(item.id, enteredDate)
+                                }
+                                showConfirmPurchaseDateDialog = false
+                                pendingPurchaseItem = null
+                            }
+                        },
+                        enabled = enteredDate.isNotBlank()
+                    ) {
+                        Text("Confirm")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmPurchaseDateDialog = false
+                        pendingPurchaseItem = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
             }
         )
     }
@@ -981,7 +1137,10 @@ fun CartItemFormDialog(
 // ──────────────────────────────────────────────────────────────────────────────
 
 @Composable
-fun CartItemCard(item: com.snapaction.data.model.CartItem) {
+fun CartItemCard(
+    item: com.snapaction.data.model.CartItem,
+    onToggleChecked: (com.snapaction.data.model.CartItem) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -995,6 +1154,13 @@ fun CartItemCard(item: com.snapaction.data.model.CartItem) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Checkbox for Purchased
+            Checkbox(
+                checked = item.isPurchased,
+                onCheckedChange = { onToggleChecked(item) }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+
             // Product icon placeholder
             Box(
                 modifier = Modifier
@@ -1017,12 +1183,25 @@ fun CartItemCard(item: com.snapaction.data.model.CartItem) {
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
-                item.brandName?.let { brand ->
-                    Text(
-                        text = brand,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    item.brandName?.let { brand ->
+                        Text(
+                            text = brand,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (item.brandName != null && item.purchaseDate != null) {
+                        Text(" • ", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    }
+                    item.purchaseDate?.let { date ->
+                        Text(
+                            text = "Purchased: $date",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
             // Quantity badge
