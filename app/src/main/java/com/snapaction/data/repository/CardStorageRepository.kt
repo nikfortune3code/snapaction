@@ -50,7 +50,11 @@ class CardStorageRepository(private val context: Context) {
     fun loadSmsCards(): List<SnapActionCard> {
         return try {
             val stored = prefs.getString(KEY_SMS_CARDS, "[]") ?: "[]"
-            json.decodeFromString<List<SnapActionCard>>(stored)
+            val decoded = json.decodeFromString<List<SnapActionCard>>(stored)
+            decoded.filter { card ->
+                val smsText = card.expense?.rawSmsText?.lowercase() ?: ""
+                !smsText.contains("disbursement")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading SMS cards from storage", e)
             emptyList()
