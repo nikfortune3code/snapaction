@@ -97,5 +97,7 @@ data class CartItem(
     val productName: String,             // Auto-filled from AI
     val brandName: String? = null,       // Null if brand not detected
     val quantity: Int = 1,               // User-editable
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val isPurchased: Boolean = false,    // Ticked manually as purchased
+    val purchaseDate: String? = null     // YYYY-MM-DD format date of purchase
 )
