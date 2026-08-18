@@ -27,6 +27,7 @@ class CardStorageRepository(private val context: Context) {
         private const val PREFS_NAME = "snapaction_cards_store"
         private const val KEY_SMS_CARDS = "sms_transaction_cards"
         private const val KEY_MANUAL_CARDS = "manual_cards"
+        private const val KEY_CART_ITEMS = "cart_items"
     }
 
     private val prefs by lazy {
@@ -117,7 +118,10 @@ class CardStorageRepository(private val context: Context) {
     fun loadManualCards(): List<SnapActionCard> {
         return try {
             val stored = prefs.getString(KEY_MANUAL_CARDS, "[]") ?: "[]"
-            json.decodeFromString<List<SnapActionCard>>(stored)
+            val decoded = json.decodeFromString<List<SnapActionCard>>(stored)
+            decoded.filter { card ->
+                !(card.confidenceScore <= 0.50 && card.expense?.vendor == "Captured Receipt")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading manual cards from storage", e)
             emptyList()
@@ -182,5 +186,29 @@ class CardStorageRepository(private val context: Context) {
      */
     fun loadAllCards(): List<SnapActionCard> {
         return (loadSmsCards() + loadManualCards()).sortedByDescending { it.timestamp }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cart Items (persisted across app updates and launches)
+    // ---------------------------------------------------------------------------
+
+    fun loadCartItems(): List<CartItem> {
+        return try {
+            val stored = prefs.getString(KEY_CART_ITEMS, "[]") ?: "[]"
+            json.decodeFromString<List<CartItem>>(stored)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading cart items from storage", e)
+            emptyList()
+        }
+    }
+
+    fun saveCartItems(items: List<CartItem>) {
+        try {
+            val encoded = json.encodeToString(items)
+            prefs.edit().putString(KEY_CART_ITEMS, encoded).apply()
+            Log.d(TAG, "Saved ${items.size} cart items to storage")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving cart items to storage", e)
+        }
     }
 }
