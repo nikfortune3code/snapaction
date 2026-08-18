@@ -198,10 +198,12 @@ fun MainScreen(viewModel: SnapViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            UploadHub(
-                processingState = uiState.processingState,
-                onPickImage = { uri -> viewModel.uploadScreenshot(uri, context) }
-            )
+            if (uiState.selectedTab != FeedTab.EXPENSES) {
+                UploadHub(
+                    processingState = uiState.processingState,
+                    onPickImage = { uri -> viewModel.uploadScreenshot(uri, context) }
+                )
+            }
 
             // Centered "Add Event" Button in Reminders Tab
             if (uiState.selectedTab == FeedTab.REMINDERS) {
@@ -461,17 +463,35 @@ fun MainScreen(viewModel: SnapViewModel) {
                     if (selectedMonthFilter == "All Months") expenseCards else expenseCards.filter { it.getMonthYearString() == selectedMonthFilter }
                 }
 
-                // Separate Debited (spent) vs Credited (refunds)
+                // Separate Debited (spent) vs Credited (refunds) vs Credit Card Payments (Cred club, Bureaus, etc.)
                 val spentExpenses = remember(monthFilteredExpenses) {
                     monthFilteredExpenses.filter { card ->
                         val exp = card.expense
-                        exp != null && exp.category != "Credit / Refund" && !exp.vendor.contains("Credited", ignoreCase = true)
+                        if (exp == null) return@filter false
+                        val isCredit = exp.category == "Credit / Refund" || exp.vendor.contains("Credited", ignoreCase = true)
+                        val payee = exp.vendor.lowercase()
+                        val sms = exp.rawSmsText?.lowercase() ?: ""
+                        val isCC = listOf("cred", "bureau", "credit card", "cc payment", "sbi card", "onecard", "slice").any { payee.contains(it) || sms.contains(it) }
+                        !isCredit && !isCC
                     }
                 }
                 val creditedExpenses = remember(monthFilteredExpenses) {
                     monthFilteredExpenses.filter { card ->
                         val exp = card.expense
-                        exp != null && (exp.category == "Credit / Refund" || exp.vendor.contains("Credited", ignoreCase = true))
+                        if (exp == null) return@filter false
+                        val isCredit = exp.category == "Credit / Refund" || exp.vendor.contains("Credited", ignoreCase = true)
+                        isCredit
+                    }
+                }
+                val ccPayments = remember(monthFilteredExpenses) {
+                    monthFilteredExpenses.filter { card ->
+                        val exp = card.expense
+                        if (exp == null) return@filter false
+                        val isCredit = exp.category == "Credit / Refund" || exp.vendor.contains("Credited", ignoreCase = true)
+                        val payee = exp.vendor.lowercase()
+                        val sms = exp.rawSmsText?.lowercase() ?: ""
+                        val isCC = listOf("cred", "bureau", "credit card", "cc payment", "sbi card", "onecard", "slice").any { payee.contains(it) || sms.contains(it) }
+                        !isCredit && isCC
                     }
                 }
 
@@ -562,9 +582,13 @@ fun MainScreen(viewModel: SnapViewModel) {
                     }
                 }
 
-                // Debited / Credited Tabs just below months chips
+                // Debited / Credited / Credit Card Payment Tabs just below months chips
                 TabRow(
-                    selectedTabIndex = if (activeExpenseTab == "Debited") 0 else 1,
+                    selectedTabIndex = when (activeExpenseTab) {
+                        "Debited" -> 0
+                        "Credited" -> 1
+                        else -> 2
+                    },
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -580,11 +604,11 @@ fun MainScreen(viewModel: SnapViewModel) {
                                 Icon(
                                     imageVector = Icons.Default.ArrowDownward,
                                     contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(14.dp),
                                     tint = if (activeExpenseTab == "Debited") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Debited (${spentExpenses.size})", fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Debited (${spentExpenses.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                             }
                         }
                     )
@@ -596,11 +620,27 @@ fun MainScreen(viewModel: SnapViewModel) {
                                 Icon(
                                     imageVector = Icons.Default.ArrowUpward,
                                     contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(14.dp),
                                     tint = if (activeExpenseTab == "Credited") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Credited (${creditedExpenses.size})", fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Credited (${creditedExpenses.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+                        }
+                    )
+                    Tab(
+                        selected = activeExpenseTab == "Credit Card Payment",
+                        onClick = { activeExpenseTab = "Credit Card Payment" },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.CreditCard,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = if (activeExpenseTab == "Credit Card Payment") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("CC Pay (${ccPayments.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                             }
                         }
                     )
@@ -609,7 +649,11 @@ fun MainScreen(viewModel: SnapViewModel) {
                 Spacer(modifier = Modifier.height(4.dp))
 
                 // Group Expenses by Month
-                val displayExpenses = if (activeExpenseTab == "Debited") spentExpenses else creditedExpenses
+                val displayExpenses = when (activeExpenseTab) {
+                    "Debited" -> spentExpenses
+                    "Credited" -> creditedExpenses
+                    else -> ccPayments
+                }
 
                 if (displayExpenses.isEmpty()) {
                     Box(
