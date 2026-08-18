@@ -90,6 +90,9 @@ class SmsTransactionRepository {
     fun parseTransactionSms(smsBody: String, timestamp: Long = System.currentTimeMillis()): SnapActionCard? {
         val lower = smsBody.lowercase()
 
+        // Ignore non-transaction alerts like disbursement consent notices
+        if (lower.contains("disbursement")) return null
+
         // Must contain at least one transaction keyword
         if (KEYWORDS.none { lower.contains(it) }) return null
 
