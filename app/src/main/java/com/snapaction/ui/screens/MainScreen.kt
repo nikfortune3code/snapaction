@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -682,7 +683,8 @@ fun MainScreen(viewModel: SnapViewModel) {
                                         pendingPurchaseItem = cartItem
                                         showConfirmPurchaseDateDialog = true
                                     }
-                                }
+                                },
+                                onDeleteCartItem = { viewModel.deleteCartItem(item.id) }
                             )
                         }
                     }
@@ -723,7 +725,8 @@ fun MainScreen(viewModel: SnapViewModel) {
                                         pendingPurchaseItem = cartItem
                                         showConfirmPurchaseDateDialog = true
                                     }
-                                }
+                                },
+                                onDeleteCartItem = { viewModel.deleteCartItem(item.id) }
                             )
                         }
                     }
@@ -1066,7 +1069,8 @@ fun CartItemFormDialog(
 @Composable
 fun CartItemCard(
     item: com.snapaction.data.model.CartItem,
-    onToggleChecked: (com.snapaction.data.model.CartItem) -> Unit
+    onToggleChecked: (com.snapaction.data.model.CartItem) -> Unit,
+    onDeleteCartItem: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -1088,21 +1092,21 @@ fun CartItemCard(
             )
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Product icon placeholder
-            Box(
+            // Captured image thumbnail
+            androidx.compose.foundation.Image(
+                painter = coil.compose.rememberAsyncImagePainter(item.imageUri),
+                contentDescription = "Product image",
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ShoppingBag,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(10.dp)
+                    ),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -1142,6 +1146,15 @@ fun CartItemCard(
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            // Delete button
+            IconButton(onClick = onDeleteCartItem) {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = "Delete Cart Item",
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }
