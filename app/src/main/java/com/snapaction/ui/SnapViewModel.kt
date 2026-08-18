@@ -75,8 +75,12 @@ class SnapViewModel(
             val allCards = withContext(Dispatchers.IO) {
                 storage.loadAllCards()
             }
+            val persistedCartItems = withContext(Dispatchers.IO) {
+                storage.loadCartItems()
+            }
             _uiState.value = _uiState.value.copy(
                 cards = allCards,
+                cartItems = persistedCartItems,
                 isLoadingStorage = false
             )
         }
@@ -360,11 +364,17 @@ class SnapViewModel(
             brandName = brandName?.ifBlank { null },
             quantity = quantity.coerceAtLeast(1)
         )
+        val updated = listOf(newItem) + _uiState.value.cartItems
         _uiState.value = _uiState.value.copy(
-            cartItems = listOf(newItem) + _uiState.value.cartItems,
+            cartItems = updated,
             pendingCartAnalysis = null,
             pendingCartImageUri = null
         )
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                storage.saveCartItems(updated)
+            }
+        }
     }
 
     /** Dismisses the pending cart analysis dialog without saving. */
@@ -391,6 +401,11 @@ class SnapViewModel(
             }
         }
         _uiState.value = _uiState.value.copy(cartItems = updated)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                storage.saveCartItems(updated)
+            }
+        }
     }
 
     /** Unmarks a cart item as purchased, reverting it to things to purchase. */
@@ -403,6 +418,11 @@ class SnapViewModel(
             }
         }
         _uiState.value = _uiState.value.copy(cartItems = updated)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                storage.saveCartItems(updated)
+            }
+        }
     }
 }
 
