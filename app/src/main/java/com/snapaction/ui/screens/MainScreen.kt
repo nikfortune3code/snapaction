@@ -80,87 +80,98 @@ fun MainScreen(viewModel: SnapViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    if (isSearchExpanded) {
-                        OutlinedTextField(
-                            value = uiState.searchQuery,
-                            onValueChange = { viewModel.updateSearchQuery(it) },
-                            placeholder = { Text("Search all tabs...", fontSize = 14.sp) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            trailingIcon = {
-                                if (uiState.searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Clear Search")
+            Column {
+                TopAppBar(
+                    title = {
+                        if (isSearchExpanded) {
+                            OutlinedTextField(
+                                value = uiState.searchQuery,
+                                onValueChange = { viewModel.updateSearchQuery(it) },
+                                placeholder = { Text("Search all tabs...", fontSize = 14.sp) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                trailingIcon = {
+                                    if (uiState.searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                            Icon(Icons.Default.Clear, contentDescription = "Clear Search")
+                                        }
                                     }
-                                }
-                            },
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "SnapAction Logo",
-                                tint = MaterialTheme.colorScheme.primary
+                                },
+                                shape = RoundedCornerShape(12.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "SnapAction",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleLarge
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = "SnapAction Logo",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "SnapAction",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        // Global Search Button
+                        IconButton(onClick = { 
+                            isSearchExpanded = !isSearchExpanded
+                            if (!isSearchExpanded) viewModel.updateSearchQuery("")
+                        }) {
+                            Icon(
+                                imageVector = if (isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
+                                contentDescription = "Search All Tabs",
+                                tint = if (isSearchExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                         }
-                    }
-                },
-                actions = {
-                    // Global Search Button
-                    IconButton(onClick = { 
-                        isSearchExpanded = !isSearchExpanded
-                        if (!isSearchExpanded) viewModel.updateSearchQuery("")
-                    }) {
-                        Icon(
-                            imageVector = if (isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
-                            contentDescription = "Search All Tabs",
-                            tint = if (isSearchExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    IconButton(onClick = { viewModel.toggleDarkMode() }) {
-                        Icon(
-                            imageVector = if (uiState.isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
-                            contentDescription = "Toggle Theme"
-                        )
-                    }
-                }
-            )
+                        IconButton(onClick = { viewModel.toggleDarkMode() }) {
+                            Icon(
+                                imageVector = if (uiState.isDarkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                contentDescription = "Toggle Theme"
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            }
         },
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = uiState.selectedTab == FeedTab.GROCERIES,
-                    onClick = { viewModel.selectTab(FeedTab.GROCERIES) },
-                    icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Cart") },
-                    label = { Text("Cart") }
-                )
-                NavigationBarItem(
-                    selected = uiState.selectedTab == FeedTab.EXPENSES,
-                    onClick = { viewModel.selectTab(FeedTab.EXPENSES) },
-                    icon = { Icon(Icons.Default.Receipt, contentDescription = "Expenses") },
-                    label = { Text("Expenses") }
-                )
-                NavigationBarItem(
-                    selected = uiState.selectedTab == FeedTab.REMINDERS,
-                    onClick = { viewModel.selectTab(FeedTab.REMINDERS) },
-                    icon = { Icon(Icons.Default.CalendarToday, contentDescription = "Reminders") },
-                    label = { Text("Reminders") }
-                )
-                NavigationBarItem(
-                    selected = uiState.selectedTab == FeedTab.BOOKMARKS,
-                    onClick = { viewModel.selectTab(FeedTab.BOOKMARKS) },
-                    icon = { Icon(Icons.Default.Bookmark, contentDescription = "Bookmark") },
-                    label = { Text("Bookmark") }
-                )
+            Column {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    NavigationBarItem(
+                        selected = uiState.selectedTab == FeedTab.GROCERIES,
+                        onClick = { viewModel.selectTab(FeedTab.GROCERIES) },
+                        icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Cart") },
+                        label = { Text("Cart") }
+                    )
+                    NavigationBarItem(
+                        selected = uiState.selectedTab == FeedTab.EXPENSES,
+                        onClick = { viewModel.selectTab(FeedTab.EXPENSES) },
+                        icon = { Icon(Icons.Default.Receipt, contentDescription = "Expenses") },
+                        label = { Text("Expenses") }
+                    )
+                    NavigationBarItem(
+                        selected = uiState.selectedTab == FeedTab.REMINDERS,
+                        onClick = { viewModel.selectTab(FeedTab.REMINDERS) },
+                        icon = { Icon(Icons.Default.CalendarToday, contentDescription = "Reminders") },
+                        label = { Text("Reminders") }
+                    )
+                    NavigationBarItem(
+                        selected = uiState.selectedTab == FeedTab.BOOKMARKS,
+                        onClick = { viewModel.selectTab(FeedTab.BOOKMARKS) },
+                        icon = { Icon(Icons.Default.Bookmark, contentDescription = "Bookmark") },
+                        label = { Text("Bookmark") }
+                    )
+                }
             }
         }
     ) { innerPadding ->
