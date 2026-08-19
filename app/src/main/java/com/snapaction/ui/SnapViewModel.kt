@@ -424,6 +424,38 @@ class SnapViewModel(
             }
         }
     }
+
+    /** Deletes a cart item by its ID. */
+    fun deleteCartItem(itemId: String) {
+        val updated = _uiState.value.cartItems.filter { it.id != itemId }
+        _uiState.value = _uiState.value.copy(cartItems = updated)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                storage.saveCartItems(updated)
+            }
+        }
+    }
+
+    /** Updates a cart item's details (productName, brandName, quantity). */
+    fun updateCartItemDetails(itemId: String, productName: String, brandName: String?, quantity: Int) {
+        val updated = _uiState.value.cartItems.map { item ->
+            if (item.id == itemId) {
+                item.copy(
+                    productName = productName.ifBlank { "Unknown Product" },
+                    brandName = brandName?.ifBlank { null },
+                    quantity = quantity.coerceAtLeast(1)
+                )
+            } else {
+                item
+            }
+        }
+        _uiState.value = _uiState.value.copy(cartItems = updated)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                storage.saveCartItems(updated)
+            }
+        }
+    }
 }
 
 /**
