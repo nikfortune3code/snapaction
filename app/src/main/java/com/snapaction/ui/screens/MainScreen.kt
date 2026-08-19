@@ -52,6 +52,8 @@ fun MainScreen(viewModel: SnapViewModel) {
     var activeExpenseTab by remember { mutableStateOf("Debited") }
     var showConfirmPurchaseDateDialog by remember { mutableStateOf(false) }
     var pendingPurchaseItem by remember { mutableStateOf<com.snapaction.data.model.CartItem?>(null) }
+    var showEditCartItemDialog by remember { mutableStateOf(false) }
+    var pendingEditCartItem by remember { mutableStateOf<com.snapaction.data.model.CartItem?>(null) }
 
 
 
@@ -695,6 +697,10 @@ fun MainScreen(viewModel: SnapViewModel) {
                                         showConfirmPurchaseDateDialog = true
                                     }
                                 },
+                                onEditCartItem = {
+                                    pendingEditCartItem = item
+                                    showEditCartItemDialog = true
+                                },
                                 onDeleteCartItem = { viewModel.deleteCartItem(item.id) }
                             )
                         }
@@ -736,6 +742,10 @@ fun MainScreen(viewModel: SnapViewModel) {
                                         pendingPurchaseItem = cartItem
                                         showConfirmPurchaseDateDialog = true
                                     }
+                                },
+                                onEditCartItem = {
+                                    pendingEditCartItem = item
+                                    showEditCartItemDialog = true
                                 },
                                 onDeleteCartItem = { viewModel.deleteCartItem(item.id) }
                             )
@@ -799,6 +809,27 @@ fun MainScreen(viewModel: SnapViewModel) {
                 viewModel.saveCartItem(product, brand, qty)
             }
         )
+    }
+
+    // ── Cart Edit Dialog ─────────────────────────────────────────────────────
+    if (showEditCartItemDialog) {
+        pendingEditCartItem?.let { item ->
+            CartItemFormDialog(
+                productName = item.productName,
+                brandName = item.brandName,
+                initialQuantity = item.quantity,
+                isEditMode = true,
+                onDismiss = {
+                    showEditCartItemDialog = false
+                    pendingEditCartItem = null
+                },
+                onSave = { product, brand, qty ->
+                    viewModel.updateCartItemDetails(item.id, product, brand, qty)
+                    showEditCartItemDialog = false
+                    pendingEditCartItem = null
+                }
+            )
+        }
     }
 
     // ── Manual Event Creation Dialog ─────────────────────────────────────────
@@ -988,22 +1019,24 @@ fun AddOfflineExpenseDialog(
 fun CartItemFormDialog(
     productName: String,
     brandName: String?,
+    initialQuantity: Int = 1,
+    isEditMode: Boolean = false,
     onDismiss: () -> Unit,
     onSave: (productName: String, brandName: String?, quantity: Int) -> Unit
 ) {
     var product  by remember { mutableStateOf(productName) }
     var brand    by remember { mutableStateOf(brandName ?: "") }
-    var qtyStr   by remember { mutableStateOf("1") }
+    var qtyStr   by remember { mutableStateOf(initialQuantity.toString()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Add to Cart", fontWeight = FontWeight.Bold)
+            Text(if (isEditMode) "Edit Cart Item" else "Add to Cart", fontWeight = FontWeight.Bold)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "AI detected the following product. Edit any field before saving.",
+                    text = if (isEditMode) "Edit the fields below to update the item." else "AI detected the following product. Edit any field before saving.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1062,9 +1095,9 @@ fun CartItemFormDialog(
                 },
                 enabled = product.isNotBlank()
             ) {
-                Icon(Icons.Default.AddShoppingCart, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(if (isEditMode) Icons.Default.Save else Icons.Default.AddShoppingCart, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Add to Cart")
+                Text(if (isEditMode) "Save Changes" else "Add to Cart")
             }
         },
         dismissButton = {
@@ -1081,6 +1114,7 @@ fun CartItemFormDialog(
 fun CartItemCard(
     item: com.snapaction.data.model.CartItem,
     onToggleChecked: (com.snapaction.data.model.CartItem) -> Unit,
+    onEditCartItem: () -> Unit,
     onDeleteCartItem: () -> Unit
 ) {
     Card(
@@ -1160,6 +1194,15 @@ fun CartItemCard(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
+            // Edit button
+            IconButton(onClick = onEditCartItem) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit Cart Item",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
             // Delete button
             IconButton(onClick = onDeleteCartItem) {
                 Icon(
