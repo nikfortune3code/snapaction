@@ -11,13 +11,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.snapaction.data.repository.CardStorageRepository
 import com.snapaction.ui.SnapViewModel
+import com.snapaction.ui.SnapViewModelFactory
 import com.snapaction.ui.screens.MainScreen
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.snapaction.ui.theme.SnapActionTheme
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: SnapViewModel by viewModels()
+    // Provide the factory so SnapViewModel gets CardStorageRepository with applicationContext
+    private val viewModel: SnapViewModel by viewModels {
+        SnapViewModelFactory(applicationContext)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,7 +33,8 @@ class MainActivity : ComponentActivity() {
         handleIncomingShareIntent(intent)
 
         setContent {
-            SnapActionTheme {
+            val uiState by viewModel.uiState.collectAsState()
+            SnapActionTheme(darkTheme = uiState.isDarkMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
