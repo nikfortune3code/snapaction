@@ -547,11 +547,11 @@ fun MainScreen(viewModel: SnapViewModel) {
                                 Icon(
                                     imageVector = Icons.Default.ArrowDownward,
                                     contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(16.dp),
                                     tint = if (activeExpenseTab == "Debited") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Debited (${spentExpenses.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                Text("Debited (${spentExpenses.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     )
@@ -563,11 +563,11 @@ fun MainScreen(viewModel: SnapViewModel) {
                                 Icon(
                                     imageVector = Icons.Default.ArrowUpward,
                                     contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(16.dp),
                                     tint = if (activeExpenseTab == "Credited") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Credited (${creditedExpenses.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                Text("Credited (${creditedExpenses.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     )
@@ -579,11 +579,11 @@ fun MainScreen(viewModel: SnapViewModel) {
                                 Icon(
                                     imageVector = Icons.Default.CreditCard,
                                     contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(16.dp),
                                     tint = if (activeExpenseTab == "Credit Card Payment") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("CC Pay (${ccPayments.size})", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                Text("CC Pay (${ccPayments.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     )
