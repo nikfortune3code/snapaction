@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +23,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.snapaction.data.model.*
 import com.snapaction.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -40,7 +43,8 @@ fun ActionCardItem(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (androidx.compose.foundation.isSystemInDarkTheme()) 0.dp else 2.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
@@ -95,7 +99,7 @@ fun ActionCardItem(
                     when (card.category) {
                         IntentCategory.EVENT -> EventCardContent(card.event)
                         IntentCategory.GROCERY -> GroceryCardContent(card.id, card.grocery, onToggleGrocery)
-                        IntentCategory.EXPENSE -> ExpenseCardContent(card.id, card.expense, onTogglePaid)
+                        IntentCategory.EXPENSE -> ExpenseCardContent(card.id, card.expense, card.timestamp, onTogglePaid)
                         IntentCategory.BOOKMARK -> BookmarkCardContent(card.bookmark)
                     }
                 }
@@ -106,25 +110,26 @@ fun ActionCardItem(
 
 @Composable
 fun CategoryBadge(category: IntentCategory, isSms: Boolean = false) {
-    val (color, icon, label) = when (category) {
-        IntentCategory.EVENT -> Triple(EventBadgeColor, Icons.Default.CalendarToday, "REMINDER")
-        IntentCategory.GROCERY -> Triple(GroceryBadgeColor, Icons.Default.ShoppingCart, "GROCERIES")
-        IntentCategory.EXPENSE -> if (isSms) Triple(ExpenseBadgeColor, Icons.Default.Sms, "SMS TRANSACTION") else Triple(ExpenseBadgeColor, Icons.Default.Receipt, "EXPENSES & BILLS")
-        IntentCategory.BOOKMARK -> Triple(BookmarkBadgeColor, Icons.Default.Bookmark, "BOOKMARKS")
+    val badgeColors = LocalCategoryColors.current
+    val (colorPair, icon, label) = when (category) {
+        IntentCategory.EVENT -> Triple(badgeColors.event, Icons.Default.CalendarToday, "REMINDER")
+        IntentCategory.GROCERY -> Triple(badgeColors.grocery, Icons.Default.ShoppingCart, "GROCERIES")
+        IntentCategory.EXPENSE -> if (isSms) Triple(badgeColors.expense, Icons.Default.Sms, "SMS TRANSACTION") else Triple(badgeColors.expense, Icons.Default.Receipt, "EXPENSES & BILLS")
+        IntentCategory.BOOKMARK -> Triple(badgeColors.bookmark, Icons.Default.Bookmark, "BOOKMARKS")
     }
 
     Surface(
-        color = color.copy(alpha = 0.15f),
+        color = colorPair.container,
         shape = RoundedCornerShape(8.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.4f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, colorPair.content.copy(alpha = 0.4f))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+            Icon(imageVector = icon, contentDescription = null, tint = colorPair.content, modifier = Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text(text = label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = color)
+            Text(text = label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = colorPair.content)
         }
     }
 }
@@ -196,6 +201,7 @@ fun GroceryCardContent(
 fun ExpenseCardContent(
     cardId: String,
     expense: ExpenseDetails?,
+    timestamp: Long = System.currentTimeMillis(),
     onTogglePaid: (String) -> Unit
 ) {
     if (expense == null) return
@@ -206,17 +212,21 @@ fun ExpenseCardContent(
         String.format(Locale.US, "$%.2f %s", expense.totalAmount, expense.currency)
     }
 
+    // Format transaction date from timestamp: e.g. "17 Aug 2026,  1:05 AM"
+    val dateLabel = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(timestamp))
+
     // 1. Transaction Heading (e.g., "Paid to Lucky Traders")
     Text(text = expense.vendor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     
     Spacer(modifier = Modifier.height(2.dp))
 
+    val expenseColor = LocalCategoryColors.current.expense.content
     // 2. Amount below heading
     Text(
         text = formattedAmount,
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.ExtraBold,
-        color = ExpenseBadgeColor
+        color = expenseColor
     )
     
     Spacer(modifier = Modifier.height(2.dp))
@@ -231,10 +241,28 @@ fun ExpenseCardContent(
         )
     }
 
-    // Optional Due Date (Shown ONLY if applicable for utility bills)
+    Spacer(modifier = Modifier.height(3.dp))
+
+    // 4. Date of transaction
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = Icons.Default.CalendarToday,
+            contentDescription = "Date",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(12.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = dateLabel,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
+    // 5. Optional Due Date (Shown ONLY if applicable for utility bills)
     if (!expense.dueDate.isNullOrBlank()) {
         Text(
-            text = "🗓️ Due Date: ${expense.dueDate}",
+            text = "🗓️ Due: ${expense.dueDate}",
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.error
@@ -246,7 +274,8 @@ fun ExpenseCardContent(
         Button(
             onClick = { onTogglePaid(cardId) },
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (expense.isPaid) MaterialTheme.colorScheme.secondary else ExpenseBadgeColor
+                containerColor = if (expense.isPaid) MaterialTheme.colorScheme.tertiary else expenseColor,
+                contentColor = Color.White
             ),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             shape = RoundedCornerShape(8.dp)
